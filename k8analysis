@@ -1,0 +1,264 @@
+#!/usr/bin/env bash
+
+REPO_DIR_NAME="$(dirname "$0")" || exit 1
+SCRIPT_NAME="$(basename "$0")" || exit 1
+
+DEFAULT_DOCKER_IMAGE_FILE_NAME="${REPO_DIR_NAME}/default_docker_image_at_k8.txt"
+
+print_usage(){
+  echo "USAGE: $0 run --job-name <job-name> <many arguments>"
+  echo "USAGE: $0 build --name <image-name>"
+  echo "USAGE: $0 push --name <image-name>"
+  echo "USAGE: $0 set-default --name <image-name>"
+  echo "USAGE: $0 version"
+  echo "Run these subcommands without arguments for more detailed documentation"
+  exit 1
+}
+
+print_build_usage(){
+  echo "Build new Docker image"
+  echo "USAGE: $0 build --name <image-name>"
+  echo "  [-n/--name]  (Required)    Name of the Docker image"
+  exit 1
+}
+
+print_push_usage(){
+  echo "Push Docker image to GCP. If name-version combination exists, please rebuilt and push with new name."
+  echo "USAGE: $0 push --name <image-name>"
+  echo "  [-n/--name]  (Required)    Name of the Docker image"
+  exit 1
+}
+
+print_run_usage(){
+  echo "Run analysis tools in Kubernetes."
+  echo "USAGE: $0 run "
+  exit 1
+}
+
+print_set_default_usage(){
+  echo "Set Docker image as default image for runs."
+  echo "USAGE: $0 set-default --name <image-name>"
+  echo "  [-n/--name]  (Required)    Name of the Docker image"
+  exit 1
+}
+
+main() {
+  if [ $# -lt 1 ]; then
+   print_usage
+  fi
+
+  local CMD=$1 && shift
+  case $CMD in
+  build)
+     build "$@";;
+  push)
+     push "$@";;
+  run)
+     run "$@";;
+  set-default)
+     set_default "$@";;
+  version)
+     version "$@";;
+  *)
+     print_usage;;
+  esac
+}
+
+build() {
+  local unrecognized=()
+  local key
+  local name
+  while [[ $# -gt 0 ]]
+  do
+    key="$1" && shift
+    case $key in
+      -n|--name)
+        name="$1" && shift;;
+      *)
+        unrecognized+=("${key}");;
+    esac
+  done
+  
+  # sanity checks
+  local input_error=false
+  if [[ ! ${#unrecognized[@]} -eq 0 ]]; then
+    print_error_msg "unrecognized options to ${SCRIPT_NAME}: options=(${unrecognized[*]})"
+    input_error=true
+  fi
+  if [[ -z ${name} ]]; then
+    print_error_msg "Variable 'name' has not been set"
+    input_error=true
+  fi
+  if [[ ${input_error} == true ]]; then
+    echo ""
+    print_build_usage
+  fi
+
+  docker build "${REPO_DIR_NAME}" -t "${name}" || die "Failed Docker build"
+
+  echo "The build has succeeded."
+  echo "If you want to push this image to GCP, run the following command:"
+  echo "  $0 push --name ${name}"
+}
+
+push() {
+  local unrecognized=()
+  local key
+  local name
+  while [[ $# -gt 0 ]]
+  do
+    key="$1" && shift
+    case $key in
+      -n|--name)
+        name="$1" && shift;;
+      *)
+        unrecognized+=("${key}");;
+    esac
+  done
+
+  # sanity checks
+  local input_error=false
+  if [[ ! ${#unrecognized[@]} -eq 0 ]]; then
+    print_error_msg "unrecognized options to ${SCRIPT_NAME}: options=(${unrecognized[*]})"
+    input_error=true
+  fi
+  if [[ -z ${name} ]]; then
+    print_error_msg "Variable 'name' has not been set"
+    input_error=true
+  fi
+  if [[ ${input_error} == true ]]; then
+    echo ""
+    print_push_usage
+  fi
+
+  echo "Checking whether image with name '${name}' already exists at GCP"
+  already_pushed=$(image_has_already_been_pushed "${name}")
+
+  if [[ ${already_pushed} ]]; then
+    die "Image with ${name} has already been pushed to GCP. Please rebuild with a newer version of the image name."
+  else
+    echo "Pushing new image ${name} to GCP"
+    docker push "${name}" || die "Failed Docker push"
+    echo "Pushed new image ${name} to GCP"
+    echo "If you wish to set this image as the new default image, run the following command:"
+    echo "  $0 set-default --name ${name}"
+  fi
+}
+
+set_default() {
+  local unrecognized=()
+  local key
+  local name
+  while [[ $# -gt 0 ]]
+  do
+    key="$1" && shift
+    case $key in
+      -n|--name)
+        name="$1" && shift;;
+      *)
+        unrecognized+=("${key}");;
+    esac
+  done
+
+  # sanity checks
+  local input_error=false
+  if [[ ! ${#unrecognized[@]} -eq 0 ]]; then
+    print_error_msg "unrecognized options to ${SCRIPT_NAME}: options=(${unrecognized[*]})"
+    input_error=true
+  fi
+  if [[ -z ${name} ]]; then
+    print_error_msg "Variable 'name' has not been set"
+    input_error=true
+  fi
+  if [[ ${input_error} == true ]]; then
+    echo ""
+    print_set_default_usage
+  fi
+
+  echo "Checking whether image with name '${name}' exists at GCP"
+  already_pushed=$(image_has_already_been_pushed "${name}")
+
+  if [[ ${already_pushed} ]]; then
+    set_default_docker_image_at_k8 "${name}" || die "Could not set Default Docker image"
+    echo "Default Docker image for runs has been set to ${name}"
+  else
+    die "Cannot set ${name} as default image since it does not exist at GCP."
+  fi
+}
+
+run() {
+  local other_arguments=()
+  local key
+  local job_name
+  local docker_image
+  while [[ $# -gt 0 ]]
+  do
+    key="$1" && shift
+    case $key in
+      -n|--job-name)  # required
+        job_name="$1" && shift;;
+      -d|--docker-image)  # optional
+        docker_image="$1" && shift;;
+      *)
+        other_arguments+=("${key}");;
+    esac
+  done
+
+  # sanity checks
+  if [[ -z ${job_name} ]]; then
+    print_error_msg "Variable 'job-name' has not been set"
+    print_run_usage
+  fi
+
+  # set default if needed
+  if [[ -z ${docker_image} ]]; then
+    docker_image="$(get_default_docker_image_at_k8)" || die "Could not find default Docker image name"
+  fi
+
+  # Make sure correct credentials are available
+  gcloud container clusters get-credentials rerun-cluster --region europe-west4 --project hmf-crunch \
+        || die "Could not find credentials at gcp"
+
+  local clean_job_name
+  clean_job_name="$(echo "${job_name}" | awk '{print tolower($0)}' | tr '_' '-' | tr '[:upper:]' '[:lower:]' | tr '.' '-')"
+
+  sed \
+  -e "s/VAR_JOB_NAME/${clean_job_name}/g" \
+  -e "s#DOCKER_IMAGE#${docker_image}#g" \
+  -e "s#RUN_ARGS#${other_arguments[*]}#g" \
+  "${REPO_DIR_NAME}/k8/hmf-crunch/deploy.yaml" \
+  | kubectl create -f -  # use # as separator to handle / properly
+}
+
+version() {
+  local default_docker_image
+  default_docker_image="$(get_default_docker_image_at_k8)" || die "Could not find default Docker image name"
+  echo "Current default Docker image version at k8: ${default_docker_image}"
+}
+
+get_default_docker_image_at_k8() {
+  cat "${DEFAULT_DOCKER_IMAGE_FILE_NAME}"
+}
+
+set_default_docker_image_at_k8() {
+  local name=$1 && shift
+  [[ -n ${name} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  echo "${name}" > "${DEFAULT_DOCKER_IMAGE_FILE_NAME}"
+}
+
+image_has_already_been_pushed() {
+  local name=$1 && shift
+  [[ -n ${name} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  docker manifest inspect "${name}"
+}
+
+die() {
+  print_error_msg "$1"
+  exit 1
+}
+
+print_error_msg() {
+  echo "[ERROR] $1"
+}
+
+main "$@"

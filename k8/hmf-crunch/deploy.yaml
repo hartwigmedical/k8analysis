@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: VAR_JOB_NAME
+  labels:
+    app: k8-flagstat
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      containers:
+        - name: VAR_JOB_NAME
+          image: DOCKER_IMAGE
+          imagePullPolicy: Always
+          args: ["RUN_ARGS"]
+          resources:
+            requests:
+              memory: "32Gi"
+            limits:
+              memory: "32Gi"
+      nodeSelector:
+        pool: large-mem-burst
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - cram2fastq
+              topologyKey: "kubernetes.io/hostname"
+      tolerations:
+        - key: reserved-pool
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      restartPolicy: Never

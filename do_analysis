@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+
+THREAD_COUNT=$(($(grep -c processor /proc/cpuinfo) * 8 / 10 ))
+SCRIPT_NAME=$(basename "$0")
+
+GSUTIL="gsutil"
+JAVA="java"
+BWA="$HOME/bwa"
+SAMBAMBA="$HOME/sambamba"
+UMI_COLLAPSE_DIR="$HOME/UMICollapse"
+UMI_COLLAPSE="${UMI_COLLAPSE_DIR}/umicollapse"
+
+LOCAL_FASTQ_DIR="$HOME/fastq"
+LOCAL_LANE_BAM_DIR="$HOME/lane_bams"
+LOCAL_REF_GENOME_DIR="$HOME/ref_genome"
+
+REF_GENOME_37_BUCKET_PATH="gs://common-resources/reference_genome/37/"
+REF_GENOME_37_FASTA_FILE="Homo_sapiens.GRCh37.GATK.illumina.fasta"
+REF_GENOME_38_BUCKET_PATH="gs://common-resources/reference_genome/38/"
+REF_GENOME_38_FASTA_FILE="GCA_000001405.15_GRCh38_no_alt_analysis_set.fna"
+
+SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE=45000000
+
+main() {
+  info "Starting with ${SCRIPT_NAME}"
+
+  # sanity checks
+  tool_exists_or_die "${GSUTIL}"
+  tool_exists_or_die "${JAVA}"
+  file_exists_or_die "${BWA}"
+  file_exists_or_die "${SAMBAMBA}"
+  file_exists_or_die "${UMI_COLLAPSE}"
+
+  info "Passed sanity checks"
+
+  while [[ $# -gt 0 ]]
+  do
+    arg="$1" && shift
+    info "Received argument: ${arg}"
+  done
+
+  mkdir -p "${LOCAL_FASTQ_DIR}" || die "Could not create local FASTQ dir"
+  mkdir -p "${LOCAL_LANE_BAM_DIR}" || die "Could not create local lane bam dir"
+  mkdir -p "${LOCAL_REF_GENOME_DIR}" || die "Could not create local ref genome dir"
+
+  info "Finished with ${SCRIPT_NAME}"
+}
+
+tool_exists_or_die() {
+  local tool=$1 && shift
+  [[ -n ${tool} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  command -v "${tool}" >/dev/null 2>&1 || die "Tool '${tool}' not found"
+}
+
+file_exists_or_die() {
+  local file=$1 && shift
+  [[ -n ${file} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  [[ -f "${file}" ]] || die "File '${file}' not found"
+}
+
+msg() {
+  local msg_type=$1 && shift
+  local msg_content=$* && shift
+  echo "[${msg_type}] $(date +'%y%m%d %T') - ${msg_content}"
+}
+
+die() {
+  msg "ERROR" "$@" >&2
+  exit 1
+}
+
+warn() {
+  msg "WARN" "$@" >&2
+}
+
+info() {
+  msg "INFO" "$@"
+}
+
+main "$@"
