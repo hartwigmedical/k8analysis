@@ -29,9 +29,11 @@ RUN git clone https://github.com/Daniel-Liu-c0deb0t/UMICollapse.git \
     && chmod +x UMICollapse/umicollapse
 
 # add script
+COPY analysis_tools analysis_tools
 COPY do_analysis do_analysis
 
 # final preparations
+RUN chmod +x analysis_tools
 RUN chmod +x do_analysis
 
 ENTRYPOINT ["./do_analysis"]

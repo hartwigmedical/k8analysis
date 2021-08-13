@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
 REPO_DIR_NAME="$(dirname "$0")" || exit 1
-SCRIPT_NAME="$(basename "$0")" || exit 1
 
-source "${REPO_DIR_NAME}/do_analysis"
+source "${REPO_DIR_NAME}/analysis_tools" || exit 1
+
+SCRIPT_NAME="$(basename "$0")" || exit 1
 
 DEFAULT_DOCKER_IMAGE_FILE_NAME="${REPO_DIR_NAME}/default_docker_image_at_k8.txt"
 
@@ -14,39 +15,40 @@ print_usage(){
   echo "USAGE: $0 set-default --name <image-name>"
   echo "USAGE: $0 version"
   echo "Run these subcommands without arguments for more detailed documentation"
-  exit 1
 }
 
 print_build_usage(){
   echo "Build new Docker image"
   echo "USAGE: $0 build --name <image-name>"
   echo "  [-n/--name]  (Required)    Name of the Docker image"
-  exit 1
 }
 
 print_push_usage(){
   echo "Push Docker image to GCP. If name-version combination exists, please rebuilt and push with new name."
   echo "USAGE: $0 push --name <image-name>"
   echo "  [-n/--name]  (Required)    Name of the Docker image"
-  exit 1
 }
 
 print_run_usage(){
   echo "Run analysis tools in Kubernetes."
-  echo "USAGE: $0 run"
-  exit 1
+  echo "USAGE: $0 run \ "
+  echo "    --job-name <job-name> \ "
+  echo "    --docker-image <docker-image> \ "
+  echo "    \${job_args}"
+  echo "  [-n/--job-name]                           (Required)    Name of the Kubernetes job"
+  echo "  [-d/--docker-image]                       (Optional)    Name of the Docker image that should be used."
+  echo "                                                          If not provided, uses the image that has been set as default."
 }
 
 print_set_default_usage(){
   echo "Set Docker image as default image for runs."
   echo "USAGE: $0 set-default --name <image-name>"
   echo "  [-n/--name]  (Required)    Name of the Docker image"
-  exit 1
 }
 
 k8analysis() {
   if [ $# -lt 1 ]; then
-    print_usage
+    print_usage && exit 1
   fi
 
   local CMD=$1 && shift
@@ -62,7 +64,7 @@ k8analysis() {
   version)
     version "$@";;
   *)
-    print_usage;;
+    print_usage && exit 1;;
   esac
 }
 
@@ -93,7 +95,7 @@ build() {
   fi
   if [[ ${input_error} == true ]]; then
     echo ""
-    print_build_usage
+    print_build_usage && exit 1
   fi
 
   docker build "${REPO_DIR_NAME}" -t "${name}" || die "Failed Docker build"
@@ -130,7 +132,7 @@ push() {
   fi
   if [[ ${input_error} == true ]]; then
     echo ""
-    print_push_usage
+    print_push_usage && exit 1
   fi
 
   echo "Checking whether image with name '${name}' already exists at GCP"
@@ -174,7 +176,7 @@ set_default() {
   fi
   if [[ ${input_error} == true ]]; then
     echo ""
-    print_set_default_usage
+    print_set_default_usage && exit 1
   fi
 
   echo "Checking whether image with name '${name}' exists at GCP"
@@ -207,9 +209,18 @@ run() {
   done
 
   # sanity checks
+  local input_error=false
   if [[ -z ${job_name} ]]; then
     print_error_msg "Variable 'job-name' has not been set"
-    print_run_usage
+    input_error=true
+  fi
+  if [[ ${#other_arguments[*]} -eq 0 ]]; then
+    print_error_msg "No jobs specified. Specify at least one run job"
+    input_error=true
+  fi
+  if [[ ${input_error} == true ]]; then
+    echo ""
+    print_run_usage && exit 1
   fi
 
   # set default if needed
@@ -224,10 +235,16 @@ run() {
   local clean_job_name
   clean_job_name="$(echo "${job_name}" | awk '{print tolower($0)}' | tr '_' '-' | tr '[:upper:]' '[:lower:]' | tr '.' '-')"
 
+  args_string=$(trim_excess_whitespace "${other_arguments[*]}") || die "Could not get command line arguments as a string"
+
+  info "Start local dry-run to check argument parsing"
+  execute_jobs "${args_string}" "${REAL_EXECUTE_FALSE}" || die "Failed local dry-run"
+  info "Finished local dry-run to check argument parsing"
+
   sed \
   -e "s/VAR_JOB_NAME/${clean_job_name}/g" \
   -e "s#DOCKER_IMAGE#${docker_image}#g" \
-  -e "s#RUN_ARGS#${other_arguments[*]}#g" \
+  -e "s#RUN_ARGS#${args_string}#g" \
   "${REPO_DIR_NAME}/k8/hmf-crunch/deploy.yaml" \
   | kubectl create -f -  # use # as separator to handle / properly
 }

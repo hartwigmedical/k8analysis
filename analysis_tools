@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+
+SCRIPT_NAME=$(basename "$0") || exit 1
+
+GSUTIL="gsutil"
+JAVA="java"
+BWA="$HOME/bwa"
+SAMBAMBA="$HOME/sambamba"
+UMI_COLLAPSE_DIR="$HOME/UMICollapse"
+UMI_COLLAPSE="${UMI_COLLAPSE_DIR}/umicollapse"
+
+LOCAL_LANE_BAM_DIR="$HOME/lane_bams"
+LOCAL_GCP_CACHE_DIR="$HOME/gcp_cache"
+
+REF_GENOME_37_BUCKET_PATH="gs://common-resources/reference_genome/37/"
+REF_GENOME_37_FASTA_FILE="Homo_sapiens.GRCh37.GATK.illumina.fasta"
+REF_GENOME_38_BUCKET_PATH="gs://common-resources/reference_genome/38/"
+REF_GENOME_38_FASTA_FILE="GCA_000001405.15_GRCh38_no_alt_analysis_set.fna"
+
+SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE=45000000
+
+REAL_EXECUTE_TRUE="REAL_EXECUTE_TRUE"
+REAL_EXECUTE_FALSE="REAL_EXECUTE_FALSE"
+
+do_analysis() {
+  info "Starting with ${SCRIPT_NAME}"
+
+  # sanity checks
+  tool_exists_or_die "${GSUTIL}"
+  tool_exists_or_die "${JAVA}"
+  file_exists_or_die "${BWA}"
+  file_exists_or_die "${SAMBAMBA}"
+  file_exists_or_die "${UMI_COLLAPSE}"
+
+  info "Passed sanity checks"
+
+  mkdir -p "${LOCAL_LANE_BAM_DIR}" || die "Could not create local lane bam dir"
+  mkdir -p "${LOCAL_GCP_CACHE_DIR}" || die "Could not create local gcp cache dir"
+
+  local args_string
+  args_string=$(trim_excess_whitespace "${*}") || die "Could not get command line arguments as a string"
+
+  execute_jobs "${args_string}" "${REAL_EXECUTE_TRUE}"
+
+  info "Finished with ${SCRIPT_NAME}"
+}
+
+execute_jobs(){
+  info "Start ${FUNCNAME[0]}"
+  local remaining_args_string=$1 && shift
+  local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
+  [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+
+  # sanity checks
+  [[ "${real_execute}" == "${REAL_EXECUTE_TRUE}" ]] || [[ "${real_execute}" == "${REAL_EXECUTE_FALSE}" ]] || \
+        die "Did not recognize 'real_execute' argument. Should be ${REAL_EXECUTE_TRUE} or ${REAL_EXECUTE_FALSE}. Was: ${real_execute}"
+  info "Passed sanity checks"
+
+  local job_arg
+  while [[ ${#remaining_args_string} -gt 0 ]]
+  do
+    job_arg=$(get_first_word "${remaining_args_string}") || die "Could not get job arg"
+    remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove job arg"
+    info "Detected job: ${job_arg}"
+    case ${job_arg} in
+      align)
+        remaining_args_string="$(align "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+      no_umi_dedup)
+        remaining_args_string="$(no_umi_dedup "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+      umi_dedup)
+        remaining_args_string="$(umi_dedup "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+      flagstat)
+        remaining_args_string="$(flagstat "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+      count_mapping_coords)
+        remaining_args_string="$(count_mapping_coords "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+      *)
+         die "Unrecognized job name: ${job_arg}";;
+      esac
+  done
+  info "Finished ${FUNCNAME[0]}"
+}
+
+align() {
+  info "Start ${FUNCNAME[0]} job"
+
+  info "Finished ${FUNCNAME[0]} job"
+}
+
+no_umi_dedup() {
+  info "Start ${FUNCNAME[0]} job"
+
+  info "Finished ${FUNCNAME[0]} job"
+}
+
+umi_dedup() {
+  info "Start ${FUNCNAME[0]} job"
+
+  info "Finished ${FUNCNAME[0]} job"
+}
+
+flagstat() {
+  info "Start ${FUNCNAME[0]} job"
+
+  info "Finished ${FUNCNAME[0]} job"
+}
+
+count_mapping_coords() {
+  info "Start ${FUNCNAME[0]} job"
+
+  info "Finished ${FUNCNAME[0]} job"
+}
+
+get_thread_count(){
+  echo $(($(grep -c processor /proc/cpuinfo) * 8 / 10 ))
+}
+
+trim_excess_whitespace() {
+  local input=$1 && shift
+  [[ -n ${input} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  echo "${*}" | xargs echo -n
+}
+
+get_first_word() {
+  local input=$1 && shift
+  [[ -n ${input} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  echo "${input%% *}"
+}
+
+delete_first_word() {
+  local input=$1 && shift
+  [[ -n ${input} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  echo "${input# *}"
+}
+
+tool_exists_or_die() {
+  local tool=$1 && shift
+  [[ -n ${tool} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  command -v "${tool}" >/dev/null 2>&1 || die "Tool '${tool}' not found"
+}
+
+file_exists_or_die() {
+  local file=$1 && shift
+  [[ -n ${file} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  [[ -f "${file}" ]] || die "File '${file}' not found"
+}
+
+msg() {
+  local msg_type=$1 && shift
+  local msg_content=$* && shift
+  echo "[${msg_type}] $(date +'%y%m%d %T') - ${msg_content}"
+}
+
+die() {
+  print_error_msg "$@"
+  exit 1
+}
+
+warn() {
+  msg "WARN" "$@" >&2
+}
+
+info() {
+  msg "INFO" "$@"
+}
+
+print_error_msg() {
+  msg "ERROR" "$@" >&2
+}
