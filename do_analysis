@@ -10,9 +10,8 @@ SAMBAMBA="$HOME/sambamba"
 UMI_COLLAPSE_DIR="$HOME/UMICollapse"
 UMI_COLLAPSE="${UMI_COLLAPSE_DIR}/umicollapse"
 
-LOCAL_FASTQ_DIR="$HOME/fastq"
 LOCAL_LANE_BAM_DIR="$HOME/lane_bams"
-LOCAL_REF_GENOME_DIR="$HOME/ref_genome"
+LOCAL_GCP_CACHE_DIR="$HOME/gcp_cache"
 
 REF_GENOME_37_BUCKET_PATH="gs://common-resources/reference_genome/37/"
 REF_GENOME_37_FASTA_FILE="Homo_sapiens.GRCh37.GATK.illumina.fasta"
@@ -21,7 +20,7 @@ REF_GENOME_38_FASTA_FILE="GCA_000001405.15_GRCh38_no_alt_analysis_set.fna"
 
 SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE=45000000
 
-main() {
+do_analysis() {
   info "Starting with ${SCRIPT_NAME}"
 
   # sanity checks
@@ -33,17 +32,83 @@ main() {
 
   info "Passed sanity checks"
 
-  while [[ $# -gt 0 ]]
+  mkdir -p "${LOCAL_LANE_BAM_DIR}" || die "Could not create local lane bam dir"
+  mkdir -p "${LOCAL_GCP_CACHE_DIR}" || die "Could not create local gcp cache dir"
+
+  local remaining_args_string
+  remaining_args_string=$(trim_excess_whitespace "${*}") || die "Could not get command line arguments as a string"
+
+  local job_arg
+  while [[ ${#remaining_args_string} -gt 0 ]]
   do
-    arg="$1" && shift
-    info "Received argument: ${arg}"
+    job_arg=$(get_first_word "${remaining_args_string}") || die "Could not get job arg"
+    remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not shift array"
+    info "Detected job: ${job_arg}"
+    case ${job_arg} in
+      align)
+        remaining_args_string="$(align "${remaining_args_string}")" || die "Could not complete ${job_arg} job";;
+      no_umi_dedup)
+        remaining_args_string="$(no_umi_dedup "${remaining_args_string}")" || die "Could not complete ${job_arg} job";;
+      umi_dedup)
+        remaining_args_string="$(umi_dedup "${remaining_args_string}")" || die "Could not complete ${job_arg} job";;
+      flagstat)
+        remaining_args_string="$(flagstat "${remaining_args_string}")" || die "Could not complete ${job_arg} job";;
+      count_mapping_coords)
+        remaining_args_string="$(count_mapping_coords "${remaining_args_string}")" || die "Could not complete ${job_arg} job";;
+      *)
+         die "Unrecognized job name: ${job_arg}";;
+      esac
   done
 
-  mkdir -p "${LOCAL_FASTQ_DIR}" || die "Could not create local FASTQ dir"
-  mkdir -p "${LOCAL_LANE_BAM_DIR}" || die "Could not create local lane bam dir"
-  mkdir -p "${LOCAL_REF_GENOME_DIR}" || die "Could not create local ref genome dir"
-
   info "Finished with ${SCRIPT_NAME}"
+}
+
+align() {
+  info "Start ${FUNCNAME[0]} job"
+
+  info "Finished ${FUNCNAME[0]} job"
+}
+
+no_umi_dedup() {
+  info "Start ${FUNCNAME[0]} job"
+
+  info "Finished ${FUNCNAME[0]} job"
+}
+
+umi_dedup() {
+  info "Start ${FUNCNAME[0]} job"
+
+  info "Finished ${FUNCNAME[0]} job"
+}
+
+flagstat() {
+  info "Start ${FUNCNAME[0]} job"
+
+  info "Finished ${FUNCNAME[0]} job"
+}
+
+count_mapping_coords() {
+  info "Start ${FUNCNAME[0]} job"
+
+  info "Finished ${FUNCNAME[0]} job"
+}
+
+trim_excess_whitespace() {
+  local input=$1 && shift
+  [[ -n ${input} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  echo "${*}" | xargs echo -n
+}
+
+get_first_word() {
+  local input=$1 && shift
+  [[ -n ${input} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  echo "${input%% *}"
+}
+
+delete_first_word() {
+  local input=$1 && shift
+  [[ -n ${input} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  echo "${input# *}"
 }
 
 tool_exists_or_die() {
@@ -65,7 +130,7 @@ msg() {
 }
 
 die() {
-  msg "ERROR" "$@" >&2
+  error_msg "$@"
   exit 1
 }
 
@@ -77,4 +142,8 @@ info() {
   msg "INFO" "$@"
 }
 
-main "$@"
+error_msg() {
+  msg "ERROR" "$@" >&2
+}
+
+do_analysis "$@"
