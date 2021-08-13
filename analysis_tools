@@ -158,6 +158,9 @@ flagstat() {
         remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove key arg"
         output=$(get_first_word "${remaining_args_string}") || die "Could not get ${key} arg"
         remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove ${key} arg";;
+      -*)
+        print_error_msg "Unrecognized option: ${key}"
+        print_flagstat_usage && exit 1;;
       *)
         break;;
     esac
@@ -183,7 +186,7 @@ flagstat() {
   fi
   if [[ ${input_error} == true ]]; then
     echo ""
-    print_flagstat_usage
+    print_flagstat_usage && exit 1
   fi
 
   info "Passed ${FUNCNAME[0]} sanity checks"
