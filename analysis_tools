@@ -12,9 +12,9 @@ UMI_COLLAPSE="${UMI_COLLAPSE_DIR}/umicollapse"
 LOCAL_LANE_BAM_DIR="$HOME/lane_bams"
 LOCAL_GCP_CACHE_DIR="$HOME/gcp_cache"
 
-REF_GENOME_37_BUCKET_PATH="gs://common-resources/reference_genome/37/"
+REF_GENOME_37_BUCKET_PATH="gs://common-resources/reference_genome/37"
 REF_GENOME_37_FASTA_FILE="Homo_sapiens.GRCh37.GATK.illumina.fasta"
-REF_GENOME_38_BUCKET_PATH="gs://common-resources/reference_genome/38/"
+REF_GENOME_38_BUCKET_PATH="gs://common-resources/reference_genome/38"
 REF_GENOME_38_FASTA_FILE="GCA_000001405.15_GRCh38_no_alt_analysis_set.fna"
 
 SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE=45000000
@@ -22,6 +22,24 @@ SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE=45000000
 REAL_EXECUTE_TRUE="REAL_EXECUTE_TRUE"
 REAL_EXECUTE_FALSE="REAL_EXECUTE_FALSE"
 
+
+print_align_usage() {
+  echo "Run bwa mem alignment of paired reads at GCP. "
+  echo "USAGE: $0 run align \ "
+  echo "    --input <input-path> \ "
+  echo "    --ref-genome 38 \ "
+  echo "    --output <output-path> \ "
+  echo "  [-i/--input]                              (Required)    Wildcard path to the fastqs file on that will be aligned,"
+  echo "                                                          e.g. gs://some-kind/of/path*.fastq.gz"
+  echo "                                                          Make sure that for each read pair the file path for read 1 contains '_R1_' exactly once and '_R2_' zero times,"
+  echo "                                                          and that the file path for read 2 contains '_R2_' exactly once and '_R1_' zero times"
+  echo "  [-r/--ref-genome]                         (Required)    Reference genome version to align to. Either '37' or '38'."
+  echo "  [-o/--output]                             (Required)    Path in bucket to which the bam will be written,"
+  echo "                                                          e.g. gs://some-other-kind/of/path.bam"
+  echo "                                                          Will also output an index file,"
+  echo "                                                          e.g. gs://some-other-kind/of/path.bam.bai"
+  exit 1
+}
 
 print_non_umi_dedup_usage() {
   echo "Run sambamba markdup at GCP. "
@@ -81,7 +99,6 @@ do_analysis() {
 
   info "Passed sanity checks"
 
-  mkdir -p "${LOCAL_LANE_BAM_DIR}" || die "Could not create local lane bam dir"
   mkdir -p "${LOCAL_GCP_CACHE_DIR}" || die "Could not create local gcp cache dir"
 
   local args_string
@@ -138,7 +155,155 @@ align() {
   local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
   [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
+  local key
+  local input
+  local ref_genome
+  local output
+  while [[ ${#remaining_args_string} -gt 0 ]]
+  do
+    key=$(get_first_word "${remaining_args_string}") || die "Could not get job arg"
+    case $key in
+      -i|--input)  # required
+        remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove key arg"
+        input=$(get_first_word "${remaining_args_string}") || die "Could not get ${key} arg"
+        remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove ${key} arg";;
+      -r|--ref-genome)  # required
+        remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove key arg"
+        ref_genome=$(get_first_word "${remaining_args_string}") || die "Could not get ${key} arg"
+        remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove ${key} arg";;
+      -o|--output)  # required
+        remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove key arg"
+        output=$(get_first_word "${remaining_args_string}") || die "Could not get ${key} arg"
+        remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove ${key} arg";;
+      -*)
+        print_error_msg "Unrecognized option: ${key}"
+        print_align_usage && exit 1;;
+      *)
+        break;;
+    esac
+  done
 
+  # sanity checks
+  local input_error=false
+  if [[ -z ${input} ]]; then
+    print_error_msg "Variable 'input' has not been set"
+    input_error=true
+  fi
+  if [[ -z ${ref_genome} ]]; then
+    print_error_msg "Variable 'ref-genome' has not been set"
+    input_error=true
+  fi
+  if [[ -z ${output} ]]; then
+    print_error_msg "Variable 'output' has not been set"
+    input_error=true
+  fi
+  if [[ -n ${input} && ! "${input}" =~ ^gs://[*-/._a-zA-Z0-9]+.fastq.gz ]]; then
+    print_error_msg "Variable 'input' needs to be set to a wilcard path to fastq files in a bucket, e.g. gs://some-kind/of/path*.fastq.gz"
+    input_error=true
+  fi
+  if [[ -n ${ref_genome} && ! "${ref_genome}" == "37" && ! "${ref_genome}" == "38" ]]; then
+    print_error_msg "Variable 'ref-genome' needs to be set to either 37 or 38"
+    input_error=true
+  fi
+  if [[ -n ${output} && ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam ]]; then
+    print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.bam'"
+    input_error=true
+  fi
+  local fastq
+  local r1_count
+  local r2_count
+  for fastq in $("${GSUTIL}" ls "${input}"); do
+    r1_count=$(count_substring "_R1_" "${fastq}") || die "Could not count _R1_ substrings in path: ${fastq}"
+    r2_count=$(count_substring "_R2_" "${fastq}") || die "Could not count _R2_ substrings in path: ${fastq}"
+    if [[ ${r1_count} -eq 1 && ${r2_count} -eq 0 ]]; then
+      if [[ ! $(file_exists_in_bucket "${fastq//_R1_/_R2_}") ]]; then
+        die "Could not find matching _R2_ read: ${fastq}"
+      fi
+    elif [[ ${r1_count} -eq 0 && ${r2_count} -eq 1 ]]; then
+      if [[ ! $(file_exists_in_bucket "${fastq//_R2_/_R1_}") ]]; then
+        die "Could not find matching _R1_ read: ${fastq}"
+      fi
+    else
+      die "A read-1 FASTQ file should contain _R1_ in the file path exactly once. A read-2 FASTQ file should contain _R2_ in the file path exactly once. This FASTQ file does neither: ${fastq}"
+    fi
+  done
+  if [[ ${input_error} == true ]]; then
+    echo ""
+    print_align_usage && exit 1
+  fi
+
+  info "Passed ${FUNCNAME[0]} sanity checks"
+  info "Align FASTQ:\ninput=${input}\noutput=${output}"
+
+  if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
+    info "Skip because of dry-run"
+  elif [[ $(file_exists_in_bucket "${output}") ]]; then
+    info "Skip because output file already exists in bucket"
+  else
+    local thread_count
+    local local_input_path
+    local local_output_path
+    local local_ref_genome
+    thread_count=$(get_thread_count) || die "Could not get thread count"
+    local_fastq_paths=$(fill_local_cache_wildcard "${input}") || die "Could not get local version of ${input}"
+    local_output_path=$(get_local_cache_path "${output}") || die "Could not get local version of ${output}"
+
+    if [[ "${ref_genome}" == "37" ]]; then
+      fill_local_cache_wildcard "${REF_GENOME_37_BUCKET_PATH}/*" || die "Could not get local version of ref genome 37"
+      local_ref_genome=$(get_local_cache_path "${REF_GENOME_37_BUCKET_PATH}/${REF_GENOME_37_FASTA_FILE}") \
+              || die "Could not get local path for ref genome 37"
+    else
+      # reference genome version is 38
+      fill_local_cache_wildcard "${REF_GENOME_38_BUCKET_PATH}/*" || die "Could not get local version of ref genome 38"
+      local_ref_genome=$(get_local_cache_path "${REF_GENOME_38_BUCKET_PATH}/${REF_GENOME_38_FASTA_FILE}") \
+              || die "Could not get local path for ref genome 38"
+    fi
+
+    if [[ -d "${LOCAL_LANE_BAM_DIR}" ]]; then
+      rm -r "${LOCAL_LANE_BAM_DIR}" || die "Could not remove local lane bam dir"
+    fi
+    mkdir -p "${LOCAL_LANE_BAM_DIR}" || die "Could not create local lane bam dir"
+
+    info "Start creating lane bams"
+    local r1_fastq
+    local r2_fastq
+    local lane_bam
+    declare -a lane_bams  # declare empty
+    for fastq in "${local_fastq_paths[@]}"; do
+      if [[ $(count_substring "_R1_" "${fastq}") -eq 1 ]]; then
+        r1_fastq="${fastq}"
+        r2_fastq="${r1_fastq//_R1_/_R2_}"
+        lane_bam="${LOCAL_LANE_BAM_DIR}/${r1_fastq}.bam"
+        info "Start creating lane bam ${lane_bam}"
+        "${BWA}" mem -Y -t "${thread_count}" "${local_ref_genome}" "${r1_fastq}" "${r2_fastq}" | \
+              "${SAMBAMBA}" view -f "bam" -S -l 0 "/dev/stdin" | \
+              "${SAMBAMBA}" sort -o "${lane_bam}" "/dev/stdin" || die "Failed creating lane bam ${lane_bam}"
+        lane_bams+=("${lane_bam}")
+        info "Finished creating lane bam ${lane_bam}"
+      fi
+    done
+    info "Finished creating lane bams: " "${lane_bams[@]}"
+
+    if [[ ${#lane_bams[@]} -gt 1 ]]; then
+      info "Start merging lane bams into one bam: ${local_output_path}"
+      "${SAMBAMBA}" merge -t "${thread_count}" "${local_output_path}" "${lane_bams[@]}" || die "Failed to merge lane bams"
+      info "Finished merging lane bams"
+    else
+      info "Only one lane bam, so it is also the merged bam"
+      cp "${lane_bams[0]}" "${local_output_path}" || die "Failed to copy lane bam to merged bam path"
+    fi
+
+    info "Start sambamba index"
+    "${SAMBAMBA}" index -t "${thread_count}" "${local_output_path}" || die "Could not index bam ${local_output_path}"
+    info "Finished sambamba index"
+
+    upload_from_local_cache "${output}" || die "Failed to upload output to ${output}"
+    upload_from_local_cache "${output}.bai" || die "Failed to upload output.bai to ${output}.bai"
+
+    if [[ -d "${LOCAL_LANE_BAM_DIR}" ]]; then
+      rm -r "${LOCAL_LANE_BAM_DIR}" || die "Could not remove local lane bam dir"
+    fi
+  fi
 
   info "Finished ${FUNCNAME[0]} job"
 
@@ -185,7 +350,7 @@ non_umi_dedup() {
     print_error_msg "Variable 'output' has not been set"
     input_error=true
   fi
-  if [[ -n ${input} && ! "${input}" =~ ^gs://[*-/._a-zA-Z0-9]+.bam$ ]]; then
+  if [[ -n ${input} && ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
     input_error=true
   fi
@@ -273,7 +438,7 @@ umi_dedup() {
     print_error_msg "Variable 'output' has not been set"
     input_error=true
   fi
-  if [[ -n ${input} && ! "${input}" =~ ^gs://[*-/._a-zA-Z0-9]+.bam$ ]]; then
+  if [[ -n ${input} && ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
     input_error=true
   fi
@@ -362,7 +527,7 @@ flagstat() {
     print_error_msg "Variable 'output' has not been set"
     input_error=true
   fi
-  if [[ -n ${input} && ! "${input}" =~ ^gs://[*-/._a-zA-Z0-9]+.bam$ ]]; then
+  if [[ -n ${input} && ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
     input_error=true
   fi
@@ -403,6 +568,37 @@ flagstat() {
   echo "${remaining_args_string}"
 }
 
+count_mapping_coords() {
+  info "Start ${FUNCNAME[0]} job"
+
+  local remaining_args_string=$1 && shift
+  local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
+  [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+
+  info "Finished ${FUNCNAME[0]} job"
+
+  echo "${remaining_args_string}"
+}
+
+fill_local_cache_wildcard() {
+  local wildcard_bucket_path=$1 && shift
+  [[ -n ${wildcard_bucket_path} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+
+  thread_count=$(get_thread_count) || die "Could not get thread count"
+
+  ("${GSUTIL}" ls "${wildcard_bucket_path}" | xargs -n 1 -P "${thread_count}" -I% fill_local_cache %) || die "Could not create local paths for ${wildcard_bucket_path}"
+
+  declare -a local_paths  # declare empty
+  local bucket_path
+  local local_path
+  for bucket_path in $("${GSUTIL}" ls "${wildcard_bucket_path}"); do
+    local_path=$(get_local_cache_path "${bucket_path}") || die "Could not get local path for ${bucket_path}"
+    local_paths+=("${local_path}")
+  done
+
+  echo "${local_paths[@]}"
+}
+
 fill_local_cache() {
   local bucket_path=$1 && shift
   [[ -n ${bucket_path} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
@@ -433,16 +629,12 @@ get_local_cache_path() {
   echo "${bucket_path/"gs://"/"${LOCAL_GCP_CACHE_DIR}/"}"
 }
 
-count_mapping_coords() {
-  info "Start ${FUNCNAME[0]} job"
-
-  local remaining_args_string=$1 && shift
-  local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
-  [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
-
-  info "Finished ${FUNCNAME[0]} job"
-
-  echo "${remaining_args_string}"
+count_substring() {
+  local substring=$1 && shift
+  local total=$1 && shift
+  [[ -n ${total} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  without_substring="${total//"${substring}"}"
+  echo $(((${#total} - ${#without_substring}) / ${#substring}))
 }
 
 file_exists_in_bucket() {
