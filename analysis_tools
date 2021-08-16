@@ -196,30 +196,22 @@ flagstat() {
   elif [[ $(file_exists_in_bucket "${output}") ]]; then
     info "Skip because output file already exists in bucket"
   else
-    do_flagstat "${input}" "${output}" || die "Could not run flagstat"
+    local thread_count
+    local local_bam_path
+    local local_flagstat_path
+    thread_count=$(get_thread_count) || die "Could not get thread count"
+    local_bam_path=$(fill_local_cache "${input}") || die "Could not get local version of ${input}"
+    fill_local_cache "${input}.bai" || die "Could not get local version of ${input}.bai"
+    local_flagstat_path=$(get_local_cache_path "${output}") || die "Could not get local version of ${output}"
+
+    "${SAMBAMBA}" flagstat -t "${thread_count}" "${local_bam_path}" > "${local_flagstat_path}" || die "Could not run flagstat"
+
+    upload_from_local_cache "${output}"
   fi
 
   info "Finished ${FUNCNAME[0]} job"
 
   echo "${remaining_args_string}"
-}
-
-do_flagstat() {
-  local input=$1 && shift
-  local output=$1 && shift
-  [[ -n ${output} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
-
-  local thread_count
-  local local_bam_path
-  local local_flagstat_path
-  thread_count=$(get_thread_count) || die "Could not get thread count"
-  local_bam_path=$(fill_local_cache "${input}") || die "Could not get local version of ${input}"
-  fill_local_cache "${input}.bai" || die "Could not get local version of ${input}.bai"
-  local_flagstat_path=$(get_local_cache_path "${output}") || die "Could not get local version of ${output}"
-
-  "${SAMBAMBA}" flagstat -t "${thread_count}" "${local_bam_path}" > "${local_flagstat_path}" || die "Could not run flagstat"
-
-  upload_from_local_cache "${output}"
 }
 
 fill_local_cache() {
