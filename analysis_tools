@@ -144,6 +144,7 @@ execute_jobs(){
     job_arg=$(get_first_word "${remaining_args_string}") || die "Could not get job arg"
     remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove job arg"
     info "Detected job: ${job_arg}"
+    info "Remaining arguments: ${remaining_args_string}"
     case ${job_arg} in
       align)
         remaining_args_string="$(do_align "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
@@ -748,7 +749,7 @@ get_first_word() {
 delete_first_word() {
   local input=$1 && shift
   [[ -n ${input} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
-  echo "${input# *}"
+  echo "${input#* }"
 }
 
 tool_exists_or_die() {
