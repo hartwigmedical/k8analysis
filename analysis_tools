@@ -101,7 +101,7 @@ print_count_mapping_coords_usage() {
   exit 1
 }
 
-do_analysis() {
+execute_analysis() {
   info "Starting with ${SCRIPT_NAME}"
 
   # sanity checks

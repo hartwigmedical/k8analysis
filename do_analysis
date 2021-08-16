@@ -2,4 +2,4 @@
 
 source "$HOME/analysis_tools" || exit 1
 
-analysis_tools "$@"
+execute_analysis "$@"
