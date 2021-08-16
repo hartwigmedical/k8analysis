@@ -164,8 +164,6 @@ execute_jobs(){
 }
 
 do_align() {
-  echo ""
-  info "Test value"
   info "Start ${FUNCNAME[0]} job"
 
   info "Remaining arguments: ${remaining_args_string}"
@@ -695,11 +693,7 @@ count_substring() {
 file_exists_in_bucket() {
   local bucket_path=$1 && shift
   [[ -n ${bucket_path} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
-  if [[ $(${GSUTIL} -q stat "${bucket_path}") ]]; then
-    return 0
-  else
-    return 1
-  fi
+  ${GSUTIL} -q stat "${bucket_path}"
 }
 
 get_thread_count(){
