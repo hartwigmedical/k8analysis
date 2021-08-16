@@ -125,7 +125,7 @@ do_analysis() {
 
 execute_jobs(){
   info "Start ${FUNCNAME[0]}"
-  local remaining_args_string=$1 && shift
+  remaining_args_string=$1 && shift
   local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
   [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
@@ -147,28 +147,26 @@ execute_jobs(){
     info "Remaining arguments: ${remaining_args_string}"
     case ${job_arg} in
       align)
-        remaining_args_string="$(do_align "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+        do_align || die "Could not complete ${job_arg} job";;
       non_umi_dedup)
-        remaining_args_string="$(do_non_umi_dedup "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+        do_non_umi_dedup || die "Could not complete ${job_arg} job";;
       umi_dedup)
-        remaining_args_string="$(do_umi_dedup "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+        do_umi_dedup || die "Could not complete ${job_arg} job";;
       flagstat)
-        remaining_args_string="$(do_flagstat "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+        do_flagstat || die "Could not complete ${job_arg} job";;
       count_mapping_coords)
-        remaining_args_string="$(do_count_mapping_coords "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+        do_count_mapping_coords || die "Could not complete ${job_arg} job";;
       *)
-         die "Unrecognized job name: ${job_arg}";;
+         die "Unrecognized job arg: ${job_arg}";;
       esac
   done
   info "Finished ${FUNCNAME[0]}"
 }
 
 do_align() {
+  echo ""
+  info "Test value"
   info "Start ${FUNCNAME[0]} job"
-
-  local remaining_args_string=$1 && shift
-  local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
-  [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
   info "Remaining arguments: ${remaining_args_string}"
 
@@ -229,7 +227,7 @@ do_align() {
   fi
 
   info "Passed ${FUNCNAME[0]} sanity checks"
-  info "Align FASTQ:\ninput=${input}\noutput=${output}"
+  info "Align FASTQ: input=${input}, output=${output}"
 
   if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
     info "Skip because of dry-run"
@@ -320,16 +318,10 @@ do_align() {
   fi
 
   info "Finished ${FUNCNAME[0]} job"
-
-  echo "${remaining_args_string}"
 }
 
 do_non_umi_dedup() {
   info "Start ${FUNCNAME[0]} job"
-
-  local remaining_args_string=$1 && shift
-  local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
-  [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
   info "Remaining arguments: ${remaining_args_string}"
 
@@ -378,7 +370,7 @@ do_non_umi_dedup() {
   fi
 
   info "Passed ${FUNCNAME[0]} sanity checks"
-  info "Do non-umi dedup:\ninput=${input}\noutput=${output}"
+  info "Do non-umi dedup: input=${input}, output=${output}"
 
   if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
     info "Skip because of dry-run"
@@ -408,16 +400,10 @@ do_non_umi_dedup() {
   fi
 
   info "Finished ${FUNCNAME[0]} job"
-
-  echo "${remaining_args_string}"
 }
 
 do_umi_dedup() {
   info "Start ${FUNCNAME[0]} job"
-
-  local remaining_args_string=$1 && shift
-  local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
-  [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
   info "Remaining arguments: ${remaining_args_string}"
 
@@ -466,7 +452,7 @@ do_umi_dedup() {
   fi
 
   info "Passed ${FUNCNAME[0]} sanity checks"
-  info "Do umi dedup:\ninput=${input}\noutput=${output}"
+  info "Do umi dedup: input=${input}, output=${output}"
 
   if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
     info "Skip because of dry-run"
@@ -497,16 +483,10 @@ do_umi_dedup() {
   fi
 
   info "Finished ${FUNCNAME[0]} job"
-
-  echo "${remaining_args_string}"
 }
 
 do_flagstat() {
   info "Start ${FUNCNAME[0]} job"
-
-  local remaining_args_string=$1 && shift
-  local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
-  [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
   info "Remaining arguments: ${remaining_args_string}"
 
@@ -555,7 +535,7 @@ do_flagstat() {
   fi
 
   info "Passed ${FUNCNAME[0]} sanity checks"
-  info "Determine flagstat:\ninput=${input}\noutput=${output}"
+  info "Determine flagstat: input=${input}, output=${output}"
 
   if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
     info "Skip because of dry-run"
@@ -578,16 +558,10 @@ do_flagstat() {
   fi
 
   info "Finished ${FUNCNAME[0]} job"
-
-  echo "${remaining_args_string}"
 }
 
 do_count_mapping_coords() {
   info "Start ${FUNCNAME[0]} job"
-
-  local remaining_args_string=$1 && shift
-  local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
-  [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
   info "Remaining arguments: ${remaining_args_string}"
 
@@ -636,7 +610,7 @@ do_count_mapping_coords() {
   fi
 
   info "Passed ${FUNCNAME[0]} sanity checks"
-  info "Determine flagstat:\ninput=${input}\noutput=${output}"
+  info "Determine flagstat: input=${input}, output=${output}"
 
   if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
     info "Skip because of dry-run"
@@ -659,8 +633,6 @@ do_count_mapping_coords() {
   fi
 
   info "Finished ${FUNCNAME[0]} job"
-
-  echo "${remaining_args_string}"
 }
 
 fill_local_cache_wildcard() {
