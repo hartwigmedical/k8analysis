@@ -169,6 +169,8 @@ align() {
   local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
   [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
+  info "Remaining arguments: ${remaining_args_string}"
+
   local key
   local input
   local ref_genome
@@ -205,25 +207,6 @@ align() {
   elif [[ ! "${input}" =~ ^gs://[*-/._a-zA-Z0-9]+.fastq.gz ]]; then
     print_error_msg "Variable 'input' needs to be set to a wilcard path to fastq files in a bucket, e.g. gs://some-kind/of/path*.fastq.gz"
     input_error=true
-  else
-    local fastq
-    local r1_count
-    local r2_count
-    for fastq in $("${GSUTIL}" ls "${input}"); do
-      r1_count=$(count_substring "_R1_" "${fastq}") || die "Could not count _R1_ substrings in path: ${fastq}"
-      r2_count=$(count_substring "_R2_" "${fastq}") || die "Could not count _R2_ substrings in path: ${fastq}"
-      if [[ ${r1_count} -eq 1 && ${r2_count} -eq 0 ]]; then
-        if [[ ! $(file_exists_in_bucket "${fastq//_R1_/_R2_}") ]]; then
-          die "Could not find matching _R2_ read: ${fastq}"
-        fi
-      elif [[ ${r1_count} -eq 0 && ${r2_count} -eq 1 ]]; then
-        if [[ ! $(file_exists_in_bucket "${fastq//_R2_/_R1_}") ]]; then
-          die "Could not find matching _R1_ read: ${fastq}"
-        fi
-      else
-        die "A read-1 FASTQ file should contain _R1_ in the file path exactly once. A read-2 FASTQ file should contain _R2_ in the file path exactly once. This FASTQ file does neither: ${fastq}"
-      fi
-    done
   fi
   if [[ -z ${ref_genome} ]]; then
     print_error_msg "Variable 'ref-genome' has not been set"
@@ -252,6 +235,24 @@ align() {
   elif [[ $(file_exists_in_bucket "${output}") ]]; then
     info "Skip because output file already exists in bucket"
   else
+    local fastq
+    local r1_count
+    local r2_count
+    for fastq in $("${GSUTIL}" ls "${input}"); do
+      r1_count=$(count_substring "_R1_" "${fastq}") || die "Could not count _R1_ substrings in path: ${fastq}"
+      r2_count=$(count_substring "_R2_" "${fastq}") || die "Could not count _R2_ substrings in path: ${fastq}"
+      if [[ ${r1_count} -eq 1 && ${r2_count} -eq 0 ]]; then
+        if [[ ! $(file_exists_in_bucket "${fastq//_R1_/_R2_}") ]]; then
+          die "Could not find matching _R2_ read: ${fastq}"
+        fi
+      elif [[ ${r1_count} -eq 0 && ${r2_count} -eq 1 ]]; then
+        if [[ ! $(file_exists_in_bucket "${fastq//_R2_/_R1_}") ]]; then
+          die "Could not find matching _R1_ read: ${fastq}"
+        fi
+      else
+        die "A read-1 FASTQ file should contain _R1_ in the file path exactly once. A read-2 FASTQ file should contain _R2_ in the file path exactly once. This FASTQ file does neither: ${fastq}"
+      fi
+    done
     local thread_count
     local local_input_path
     local local_output_path
@@ -328,6 +329,8 @@ non_umi_dedup() {
   local remaining_args_string=$1 && shift
   local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
   [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+
+  info "Remaining arguments: ${remaining_args_string}"
 
   local key
   local input
@@ -414,6 +417,8 @@ umi_dedup() {
   local remaining_args_string=$1 && shift
   local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
   [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+
+  info "Remaining arguments: ${remaining_args_string}"
 
   local key
   local input
@@ -502,6 +507,8 @@ flagstat() {
   local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
   [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
+  info "Remaining arguments: ${remaining_args_string}"
+
   local key
   local input
   local output
@@ -580,6 +587,8 @@ count_mapping_coords() {
   local remaining_args_string=$1 && shift
   local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
   [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+
+  info "Remaining arguments: ${remaining_args_string}"
 
   local key
   local input
