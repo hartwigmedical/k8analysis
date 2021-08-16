@@ -640,15 +640,11 @@ fill_local_cache_wildcard() {
   local wildcard_bucket_path=$1 && shift
   [[ -n ${wildcard_bucket_path} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
-  thread_count=$(get_thread_count) || die "Could not get thread count"
-
-  "${GSUTIL}" ls "${wildcard_bucket_path}" | xargs -n 1 -P "${thread_count}" -I% fill_local_cache % || die "Could not create local paths for ${wildcard_bucket_path}"
-
   declare -a local_paths  # declare empty
   local bucket_path
   local local_path
   for bucket_path in $("${GSUTIL}" ls "${wildcard_bucket_path}"); do
-    local_path=$(get_local_cache_path "${bucket_path}") || die "Could not get local path for ${bucket_path}"
+    local_path=$(fill_local_cache "${bucket_path}") || die "Could not get local path for ${bucket_path}"
     local_paths+=("${local_path}")
   done
 
