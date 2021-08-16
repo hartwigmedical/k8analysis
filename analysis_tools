@@ -28,7 +28,7 @@ print_align_usage() {
   echo "USAGE: $0 run align \ "
   echo "    --input <input-path> \ "
   echo "    --ref-genome 38 \ "
-  echo "    --output <output-path> \ "
+  echo "    --output <output-path>"
   echo "  [-i/--input]                              (Required)    Wildcard path to the fastqs file on that will be aligned,"
   echo "                                                          e.g. gs://some-kind/of/path*.fastq.gz"
   echo "                                                          Make sure that for each read pair the file path for read 1 contains '_R1_' exactly once and '_R2_' zero times,"
@@ -45,7 +45,7 @@ print_non_umi_dedup_usage() {
   echo "Run sambamba markdup at GCP. "
   echo "USAGE: $0 run non_umi_dedup \ "
   echo "    --input <input-path> \ "
-  echo "    --output <output-path> \ "
+  echo "    --output <output-path>"
   echo "  [-i/--input]                              (Required)    Path to the bam file on which deduplication will be run,"
   echo "                                                          e.g. gs://some-kind/of/path.bam"
   echo "                                                          Make sure that an index file is also available,"
@@ -61,7 +61,7 @@ print_umi_dedup_usage() {
   echo "Run UMI-Collapse dedupping at GCP. "
   echo "USAGE: $0 run umi_dedup \ "
   echo "    --input <input-path> \ "
-  echo "    --output <output-path> \ "
+  echo "    --output <output-path>"
   echo "  [-i/--input]                              (Required)    Path to the bam file on which deduplication will be run,"
   echo "                                                          e.g. gs://some-kind/of/path.bam"
   echo "                                                          Make sure that an index file is also available,"
@@ -77,13 +77,27 @@ print_flagstat_usage() {
   echo "Run sambamba flagstat at GCP. "
   echo "USAGE: $0 run flagstat \ "
   echo "    --input <input-path> \ "
-  echo "    --output <output-path> \ "
+  echo "    --output <output-path>"
   echo "  [-i/--input]                              (Required)    Path to the bam file on which sambamba flagstat will be run,"
   echo "                                                          e.g. gs://some-kind/of/path.bam"
   echo "                                                          Make sure that an index file is also available,"
   echo "                                                          e.g. gs://some-kind/of/path.bam.bai"
   echo "  [-o/--output]                             (Required)    Path in bucket to which flagstat file will be written,"
   echo "                                                          e.g. gs://some-other-kind/of/path.flagstat"
+  exit 1
+}
+
+print_count_mapping_coords_usage() {
+  echo "Count mapping coordinates at GCP. "
+  echo "USAGE: $0 run count_mapping_coords \ "
+  echo "    --input <input-path> \ "
+  echo "    --output <output-path>"
+  echo "  [-i/--input]                              (Required)    Path to the bam file of which mapping coordinates will be counted,"
+  echo "                                                          e.g. gs://some-kind/of/path.bam"
+  echo "                                                          Make sure that an index file is also available,"
+  echo "                                                          e.g. gs://some-kind/of/path.bam.bai"
+  echo "  [-o/--output]                             (Required)    Path in bucket to which count will be uploaded,"
+  echo "                                                          e.g. gs://some-other-kind/of/path.txt"
   exit 1
 }
 
@@ -575,6 +589,75 @@ count_mapping_coords() {
   local real_execute=$1 && shift  # so not a dry run to check the parameter parsing
   [[ -n ${real_execute} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
+  local key
+  local input
+  local output
+  while [[ ${#remaining_args_string} -gt 0 ]]
+  do
+    key=$(get_first_word "${remaining_args_string}") || die "Could not get job arg"
+    case $key in
+      -i|--input)  # required
+        remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove key arg"
+        input=$(get_first_word "${remaining_args_string}") || die "Could not get ${key} arg"
+        remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove ${key} arg";;
+      -o|--output)  # required
+        remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove key arg"
+        output=$(get_first_word "${remaining_args_string}") || die "Could not get ${key} arg"
+        remaining_args_string=$(delete_first_word "${remaining_args_string}") || die "Could not remove ${key} arg";;
+      -*)
+        print_error_msg "Unrecognized option: ${key}"
+        print_count_mapping_coords_usage && exit 1;;
+      *)
+        break;;
+    esac
+  done
+
+  # sanity checks
+  local input_error=false
+  if [[ -z ${input} ]]; then
+    print_error_msg "Variable 'input' has not been set"
+    input_error=true
+  fi
+  if [[ -z ${output} ]]; then
+    print_error_msg "Variable 'output' has not been set"
+    input_error=true
+  fi
+  if [[ -n ${input} && ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+    print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
+    input_error=true
+  fi
+  if [[ -n ${output} && ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.txt ]]; then
+    print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.txt'"
+    input_error=true
+  fi
+  if [[ ${input_error} == true ]]; then
+    echo ""
+    print_count_mapping_coords_usage && exit 1
+  fi
+
+  info "Passed ${FUNCNAME[0]} sanity checks"
+  info "Determine flagstat:\ninput=${input}\noutput=${output}"
+
+  if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
+    info "Skip because of dry-run"
+  elif [[ $(file_exists_in_bucket "${output}") ]]; then
+    info "Skip because output file already exists in bucket"
+  else
+    local thread_count
+    local local_input_path
+    local local_output_path
+    thread_count=$(get_thread_count) || die "Could not get thread count"
+    local_input_path=$(fill_local_cache "${input}") || die "Could not get local version of ${input}"
+    fill_local_cache "${input}.bai" || die "Could not get local version of ${input}.bai"
+    local_output_path=$(get_local_cache_path "${output}") || die "Could not get local version of ${output}"
+
+    info "Start counting mapping coordinates"
+    "${SAMBAMBA}" view -t "${thread_count}" "${local_input_path}" | awk '{print $3 "\t" $4}' | uniq | wc -l > "${local_output_path}" || die "Could not count mapping coordinates"
+    info "Finished counting mapping coordinates"
+
+    upload_from_local_cache "${output}" || die "Failed to upload output to ${output}"
+  fi
+
   info "Finished ${FUNCNAME[0]} job"
 
   echo "${remaining_args_string}"
@@ -586,7 +669,7 @@ fill_local_cache_wildcard() {
 
   thread_count=$(get_thread_count) || die "Could not get thread count"
 
-  ("${GSUTIL}" ls "${wildcard_bucket_path}" | xargs -n 1 -P "${thread_count}" -I% fill_local_cache %) || die "Could not create local paths for ${wildcard_bucket_path}"
+  "${GSUTIL}" ls "${wildcard_bucket_path}" | xargs -n 1 -P "${thread_count}" -I% fill_local_cache % || die "Could not create local paths for ${wildcard_bucket_path}"
 
   declare -a local_paths  # declare empty
   local bucket_path
