@@ -721,7 +721,13 @@ get_first_word() {
 delete_first_word() {
   local input=$1 && shift
   [[ -n ${input} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
-  echo "${input#* }"
+  local from_first_space="${input#* }"
+  if [[ "${from_first_space}" != "${input}" ]]; then
+    echo "${from_first_space}"
+  else
+    # No spaces left
+    echo ""
+  fi
 }
 
 tool_exists_or_die() {
