@@ -202,45 +202,43 @@ align() {
   if [[ -z ${input} ]]; then
     print_error_msg "Variable 'input' has not been set"
     input_error=true
+  elif [[ ! "${input}" =~ ^gs://[*-/._a-zA-Z0-9]+.fastq.gz ]]; then
+    print_error_msg "Variable 'input' needs to be set to a wilcard path to fastq files in a bucket, e.g. gs://some-kind/of/path*.fastq.gz"
+    input_error=true
+  else
+    local fastq
+    local r1_count
+    local r2_count
+    for fastq in $("${GSUTIL}" ls "${input}"); do
+      r1_count=$(count_substring "_R1_" "${fastq}") || die "Could not count _R1_ substrings in path: ${fastq}"
+      r2_count=$(count_substring "_R2_" "${fastq}") || die "Could not count _R2_ substrings in path: ${fastq}"
+      if [[ ${r1_count} -eq 1 && ${r2_count} -eq 0 ]]; then
+        if [[ ! $(file_exists_in_bucket "${fastq//_R1_/_R2_}") ]]; then
+          die "Could not find matching _R2_ read: ${fastq}"
+        fi
+      elif [[ ${r1_count} -eq 0 && ${r2_count} -eq 1 ]]; then
+        if [[ ! $(file_exists_in_bucket "${fastq//_R2_/_R1_}") ]]; then
+          die "Could not find matching _R1_ read: ${fastq}"
+        fi
+      else
+        die "A read-1 FASTQ file should contain _R1_ in the file path exactly once. A read-2 FASTQ file should contain _R2_ in the file path exactly once. This FASTQ file does neither: ${fastq}"
+      fi
+    done
   fi
   if [[ -z ${ref_genome} ]]; then
     print_error_msg "Variable 'ref-genome' has not been set"
+    input_error=true
+  elif [[ ! "${ref_genome}" == "37" && ! "${ref_genome}" == "38" ]]; then
+    print_error_msg "Variable 'ref-genome' needs to be set to either 37 or 38"
     input_error=true
   fi
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  fi
-  if [[ -n ${input} && ! "${input}" =~ ^gs://[*-/._a-zA-Z0-9]+.fastq.gz ]]; then
-    print_error_msg "Variable 'input' needs to be set to a wilcard path to fastq files in a bucket, e.g. gs://some-kind/of/path*.fastq.gz"
-    input_error=true
-  fi
-  if [[ -n ${ref_genome} && ! "${ref_genome}" == "37" && ! "${ref_genome}" == "38" ]]; then
-    print_error_msg "Variable 'ref-genome' needs to be set to either 37 or 38"
-    input_error=true
-  fi
-  if [[ -n ${output} && ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam ]]; then
+  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.bam'"
     input_error=true
   fi
-  local fastq
-  local r1_count
-  local r2_count
-  for fastq in $("${GSUTIL}" ls "${input}"); do
-    r1_count=$(count_substring "_R1_" "${fastq}") || die "Could not count _R1_ substrings in path: ${fastq}"
-    r2_count=$(count_substring "_R2_" "${fastq}") || die "Could not count _R2_ substrings in path: ${fastq}"
-    if [[ ${r1_count} -eq 1 && ${r2_count} -eq 0 ]]; then
-      if [[ ! $(file_exists_in_bucket "${fastq//_R1_/_R2_}") ]]; then
-        die "Could not find matching _R2_ read: ${fastq}"
-      fi
-    elif [[ ${r1_count} -eq 0 && ${r2_count} -eq 1 ]]; then
-      if [[ ! $(file_exists_in_bucket "${fastq//_R2_/_R1_}") ]]; then
-        die "Could not find matching _R1_ read: ${fastq}"
-      fi
-    else
-      die "A read-1 FASTQ file should contain _R1_ in the file path exactly once. A read-2 FASTQ file should contain _R2_ in the file path exactly once. This FASTQ file does neither: ${fastq}"
-    fi
-  done
   if [[ ${input_error} == true ]]; then
     echo ""
     print_align_usage && exit 1
@@ -359,16 +357,14 @@ non_umi_dedup() {
   if [[ -z ${input} ]]; then
     print_error_msg "Variable 'input' has not been set"
     input_error=true
+  elif [[ ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+    print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
+    input_error=true
   fi
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  fi
-  if [[ -n ${input} && ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
-    print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
-    input_error=true
-  fi
-  if [[ -n ${output} && ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam ]]; then
+  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.bam'"
     input_error=true
   fi
@@ -447,16 +443,14 @@ umi_dedup() {
   if [[ -z ${input} ]]; then
     print_error_msg "Variable 'input' has not been set"
     input_error=true
+  elif [[ ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+    print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
+    input_error=true
   fi
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  fi
-  if [[ -n ${input} && ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
-    print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
-    input_error=true
-  fi
-  if [[ -n ${output} && ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam ]]; then
+  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.bam'"
     input_error=true
   fi
@@ -536,16 +530,14 @@ flagstat() {
   if [[ -z ${input} ]]; then
     print_error_msg "Variable 'input' has not been set"
     input_error=true
+  elif [[ ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+    print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
+    input_error=true
   fi
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  fi
-  if [[ -n ${input} && ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
-    print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
-    input_error=true
-  fi
-  if [[ -n ${output} && ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.flagstat ]]; then
+  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.flagstat ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.flagstat'"
     input_error=true
   fi
@@ -617,16 +609,14 @@ count_mapping_coords() {
   if [[ -z ${input} ]]; then
     print_error_msg "Variable 'input' has not been set"
     input_error=true
+  elif [[ ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+    print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
+    input_error=true
   fi
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  fi
-  if [[ -n ${input} && ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
-    print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
-    input_error=true
-  fi
-  if [[ -n ${output} && ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.txt ]]; then
+  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.txt ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.txt'"
     input_error=true
   fi
