@@ -146,15 +146,15 @@ execute_jobs(){
     info "Detected job: ${job_arg}"
     case ${job_arg} in
       align)
-        remaining_args_string="$(align "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+        remaining_args_string="$(do_align "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
       non_umi_dedup)
-        remaining_args_string="$(non_umi_dedup "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+        remaining_args_string="$(do_non_umi_dedup "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
       umi_dedup)
-        remaining_args_string="$(umi_dedup "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+        remaining_args_string="$(do_umi_dedup "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
       flagstat)
-        remaining_args_string="$(flagstat "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+        remaining_args_string="$(do_flagstat "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
       count_mapping_coords)
-        remaining_args_string="$(count_mapping_coords "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
+        remaining_args_string="$(do_count_mapping_coords "${remaining_args_string}" "${real_execute}")" || die "Could not complete ${job_arg} job";;
       *)
          die "Unrecognized job name: ${job_arg}";;
       esac
@@ -162,7 +162,7 @@ execute_jobs(){
   info "Finished ${FUNCNAME[0]}"
 }
 
-align() {
+do_align() {
   info "Start ${FUNCNAME[0]} job"
 
   local remaining_args_string=$1 && shift
@@ -323,7 +323,7 @@ align() {
   echo "${remaining_args_string}"
 }
 
-non_umi_dedup() {
+do_non_umi_dedup() {
   info "Start ${FUNCNAME[0]} job"
 
   local remaining_args_string=$1 && shift
@@ -411,7 +411,7 @@ non_umi_dedup() {
   echo "${remaining_args_string}"
 }
 
-umi_dedup() {
+do_umi_dedup() {
   info "Start ${FUNCNAME[0]} job"
 
   local remaining_args_string=$1 && shift
@@ -500,7 +500,7 @@ umi_dedup() {
   echo "${remaining_args_string}"
 }
 
-flagstat() {
+do_flagstat() {
   info "Start ${FUNCNAME[0]} job"
 
   local remaining_args_string=$1 && shift
@@ -581,7 +581,7 @@ flagstat() {
   echo "${remaining_args_string}"
 }
 
-count_mapping_coords() {
+do_count_mapping_coords() {
   info "Start ${FUNCNAME[0]} job"
 
   local remaining_args_string=$1 && shift
