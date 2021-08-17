@@ -148,13 +148,13 @@ execute_jobs(){
     case ${job_arg} in
       align)
         do_align || die "Could not complete ${job_arg} job";;
-      non_umi_dedup)
+      non-umi-dedup)
         do_non_umi_dedup || die "Could not complete ${job_arg} job";;
-      umi_dedup)
+      umi-dedup)
         do_umi_dedup || die "Could not complete ${job_arg} job";;
       flagstat)
         do_flagstat || die "Could not complete ${job_arg} job";;
-      count_mapping_coords)
+      count-mapping-coords)
         do_count_mapping_coords || die "Could not complete ${job_arg} job";;
       *)
          die "Unrecognized job arg: ${job_arg}";;

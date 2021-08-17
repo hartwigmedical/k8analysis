@@ -10,11 +10,17 @@ DEFAULT_DOCKER_IMAGE_FILE_NAME="${REPO_DIR_NAME}/default_docker_image_at_k8.txt"
 
 print_usage(){
   echo "USAGE: $0 run --job-name <job-name> <many arguments>"
+  echo "USAGE: $0 version"
   echo "USAGE: $0 build --name <image-name>"
   echo "USAGE: $0 push --name <image-name>"
   echo "USAGE: $0 set-default --name <image-name>"
-  echo "USAGE: $0 version"
   echo "Run these subcommands without arguments for more detailed documentation"
+  echo ""
+  echo "run               Run analysis jobs in Kubernetes."
+  echo "version           Get the name of the current default Docker image for running jobs."
+  echo "build             Build new Docker image."
+  echo "push              Push new Docker image to GCP."
+  echo "set-default       Set Docker image at GCP to default version for running jobs."
 }
 
 print_build_usage(){
@@ -38,6 +44,33 @@ print_run_usage(){
   echo "  [-n/--job-name]                           (Required)    Name of the Kubernetes job"
   echo "  [-d/--docker-image]                       (Optional)    Name of the Docker image that should be used."
   echo "                                                          If not provided, uses the image that has been set as default."
+  echo "The possible jobs are:"
+  echo "align, non-umi-dedup, umi-dedup, flagstat, count-mapping-coords"
+  echo ""
+  echo "align:                    Run bwa mem alignment of paired reads FASTQ."
+  echo "non-umi-dedup:            Deduplicate bam with sambamba markdup whilst ignoring UMI's."
+  echo "umi-dedup:                Deduplicate bam with UMI-Collapse by taking UMI's into account."
+  echo "flagstat:                 Collect flagstat stats for bam with sambamba flagstat."
+  echo "count-mapping-coords      Count unique mapping positions present in bam."
+  echo ""
+  echo "Run the run command with a job without further arguments to get more details on the job and required arguments, e.g. $0 run align"
+  echo ""
+  echo "Multiple jobs can be executed sequentially by providing run with the appropriate arguments for both, e.g.:"
+  echo "$0 run \ "
+  echo "    align \ "
+  echo "        --ref-genome 38 \ "
+  echo '        --input "gs://some-fastq/path/*.fastq.gz" \ '
+  echo '        --output "gs://some/bam/path.bam" \ '
+  echo '    non-umi-dedup \ '
+  echo '        --input "gs://some/bam/path.bam" \ '
+  echo '        --output "gs://some/deduplicated/bam/path"'
+  echo ""
+  echo "If you want the output of one command to function as the input of the next command, then give both the same bucket path."
+  echo "Redownloading of locally available files is skipped. If you are not interested in the intermediary "
+  echo "files of a sequence of analysis jobs then put all of them in a specific separate directory. That way you can delete "
+  echo "them all at once when the analysis jobs are done."
+  echo ""
+  echo "If the output file of a job already exists in the bucket then that job is skipped."
 }
 
 print_set_default_usage(){
@@ -139,7 +172,7 @@ push() {
   already_pushed=$(image_has_already_been_pushed "${name}")
 
   if [[ ${already_pushed} ]]; then
-    die "Image with ${name} has already been pushed to GCP. Please rebuild with a newer version of the image name."
+    die "Image with ${name} has already been pushed to GCP. Please rebuild with a newer version of the image name. Run '$0 version' to see the current default version."
   else
     echo "Pushing new image ${name} to GCP"
     docker push "${name}" || die "Failed Docker push"
