@@ -229,7 +229,7 @@ do_align() {
 
   if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
     info "Skip because of dry-run"
-  elif [[ $(file_exists_in_bucket "${output}") ]]; then
+  elif file_exists_in_bucket "${output}"; then
     info "Skip because output file already exists in bucket"
   else
     local fastq
@@ -241,12 +241,12 @@ do_align() {
       r2_count=$(count_substring "_R2_" "${fastq}") || die "Could not count _R2_ substrings in path: ${fastq}"
       if [[ ${r1_count} -eq 1 && ${r2_count} -eq 0 ]]; then
         other_fastq="${fastq//_R1_/_R2_}"
-        if [[ $(! file_exists_in_bucket "${other_fastq}") ]]; then
+        if ! file_exists_in_bucket "${other_fastq}"; then
           die "Could not find matching _R2_ read ${other_fastq} for ${fastq}"
         fi
       elif [[ ${r1_count} -eq 0 && ${r2_count} -eq 1 ]]; then
         other_fastq="${fastq//_R2_/_R1_}"
-        if [[ $(! file_exists_in_bucket "${other_fastq}") ]]; then
+        if ! file_exists_in_bucket "${other_fastq}"; then
           die "Could not find matching _R1_ read ${other_fastq} for ${fastq}"
         fi
       else
@@ -380,7 +380,7 @@ do_non_umi_dedup() {
 
   if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
     info "Skip because of dry-run"
-  elif [[ $(file_exists_in_bucket "${output}") ]]; then
+  elif file_exists_in_bucket "${output}"; then
     info "Skip because output file already exists in bucket"
   else
     local thread_count
@@ -463,7 +463,7 @@ do_umi_dedup() {
 
   if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
     info "Skip because of dry-run"
-  elif [[ $(file_exists_in_bucket "${output}") ]]; then
+  elif file_exists_in_bucket "${output}"; then
     info "Skip because output file already exists in bucket"
   else
     local thread_count
@@ -547,7 +547,7 @@ do_flagstat() {
 
   if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
     info "Skip because of dry-run"
-  elif [[ $(file_exists_in_bucket "${output}") ]]; then
+  elif file_exists_in_bucket "${output}"; then
     info "Skip because output file already exists in bucket"
   else
     local thread_count
@@ -623,7 +623,7 @@ do_count_mapping_coords() {
 
   if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
     info "Skip because of dry-run"
-  elif [[ $(file_exists_in_bucket "${output}") ]]; then
+  elif file_exists_in_bucket "${output}"; then
     info "Skip because output file already exists in bucket"
   else
     local thread_count
@@ -687,7 +687,7 @@ upload_from_local_cache() {
   local_path=$(get_local_cache_path "${bucket_path}") || die "Could not get local path for ${bucket_path}"
 
   "${GSUTIL}" -m cp "${local_path}" "${bucket_path}"
-  [[ $(file_exists_in_bucket "${bucket_path}") ]] || die "Upload to ${bucket_path} failed"
+  file_exists_in_bucket "${bucket_path}" || die "Upload to ${bucket_path} failed"
 }
 
 get_local_cache_path() {
