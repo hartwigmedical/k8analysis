@@ -289,6 +289,8 @@ do_align() {
         r1_fastq="${fastq}"
         r2_fastq="${r1_fastq//_R1_/_R2_}"
         lane_bam="${LOCAL_LANE_BAM_DIR}/${r1_fastq//"gs://"}.bam"
+        create_parent_directories "${lane_bam}" || die "Could not create parent directories for lane bam"
+        # TODO: implement create_parent_directories
         info "Start creating lane bam ${lane_bam}"
         "${BWA}" mem -Y -t "${thread_count}" "${local_ref_genome}" "${r1_fastq}" "${r2_fastq}" | \
               "${SAMBAMBA}" view -f "bam" -S -l 0 "/dev/stdin" | \
@@ -299,6 +301,7 @@ do_align() {
     done
     info "Finished creating lane bams: " "${lane_bams[@]}"
 
+    create_parent_directories "${local_output_path}" || die "Could not create parent directories for output file"
     if [[ ${#lane_bams[@]} -gt 1 ]]; then
       info "Start merging lane bams into one bam: ${local_output_path}"
       "${SAMBAMBA}" merge -t "${thread_count}" "${local_output_path}" "${lane_bams[@]}" || die "Failed to merge lane bams"
@@ -388,6 +391,7 @@ do_non_umi_dedup() {
     fill_local_cache "${input}.bai" || die "Could not get local version of ${input}.bai"
     local_output_path=$(get_local_cache_path "${output}") || die "Could not get local version of ${output}"
 
+    create_parent_directories "${local_output_path}" || die "Could not create parent directories for output file"
     info "Start sambamba markdup"
     "${SAMBAMBA}" markdup -t "${thread_count}" --overflow-list-size="${SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE}" \
         "${local_input_path}" "${local_output_path}" \
@@ -470,6 +474,7 @@ do_umi_dedup() {
     fill_local_cache "${input}.bai" || die "Could not get local version of ${input}.bai"
     local_output_path=$(get_local_cache_path "${output}") || die "Could not get local version of ${output}"
 
+    create_parent_directories "${local_output_path}" || die "Could not create parent directories for output file"
     info "Start UMI-Collapse"
     pushd "${UMI_COLLAPSE_DIR}" || die "Could not cd into UMI-Collapse dir"
     "${UMI_COLLAPSE}" bam -i "${local_input_path}" -o "${local_output_path}" --umi-sep ":" --paired --two-pass \
@@ -553,6 +558,7 @@ do_flagstat() {
     fill_local_cache "${input}.bai" || die "Could not get local version of ${input}.bai"
     local_flagstat_path=$(get_local_cache_path "${output}") || die "Could not get local version of ${output}"
 
+    create_parent_directories "${local_flagstat_path}" || die "Could not create parent directories for flagstat file"
     info "Start sambamba flagstat"
     "${SAMBAMBA}" flagstat -t "${thread_count}" "${local_bam_path}" > "${local_flagstat_path}" || die "Could not run flagstat"
     info "Finished sambamba flagstat"
@@ -628,6 +634,7 @@ do_count_mapping_coords() {
     fill_local_cache "${input}.bai" || die "Could not get local version of ${input}.bai"
     local_output_path=$(get_local_cache_path "${output}") || die "Could not get local version of ${output}"
 
+    create_parent_directories "${local_output_path}" || die "Could not create parent directories for output file"
     info "Start counting mapping coordinates"
     "${SAMBAMBA}" view -t "${thread_count}" "${local_input_path}" | awk '{print $3 "\t" $4}' | uniq | wc -l > "${local_output_path}" || die "Could not count mapping coordinates"
     info "Finished counting mapping coordinates"
@@ -695,6 +702,12 @@ count_substring() {
   [[ -n ${total} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
   without_substring="${total//"${substring}"}"
   echo $(((${#total} - ${#without_substring}) / ${#substring}))
+}
+
+create_parent_directories() {
+  local file_path=$1 && shift
+  [[ -n ${file_path} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
+  mkdir -p "${file_path%/*}" || die "Could not create parent directories for file"
 }
 
 file_exists_in_bucket() {
