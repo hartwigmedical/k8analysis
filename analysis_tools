@@ -619,7 +619,7 @@ do_count_mapping_coords() {
   fi
 
   info "Passed ${FUNCNAME[0]} sanity checks"
-  info "Determine flagstat: input=${input}, output=${output}"
+  info "Determine count of mapping coords: input=${input}, output=${output}"
 
   if [[ "${real_execute}" != "${REAL_EXECUTE_TRUE}" ]]; then
     info "Skip because of dry-run"
