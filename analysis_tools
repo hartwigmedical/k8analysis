@@ -257,8 +257,9 @@ do_align() {
     local local_input_path
     local local_output_path
     local local_ref_genome
+    declare -a local_fastq_paths  # declare empty
     thread_count=$(get_thread_count) || die "Could not get thread count"
-    local_fastq_paths=$(fill_local_cache_wildcard "${input}") || die "Could not get local version of ${input}"
+    fill_local_cache_wildcard "${input}" local_fastq_paths || die "Could not get local version of ${input}"
     local_output_path=$(get_local_cache_path "${output}") || die "Could not get local version of ${output}"
 
     if [[ "${ref_genome}" == "37" ]]; then
@@ -277,16 +278,17 @@ do_align() {
     fi
     mkdir -p "${LOCAL_LANE_BAM_DIR}" || die "Could not create local lane bam dir"
 
-    info "Start creating lane bams"
+    info "Start creating lane bams from FASTQ: " "${local_fastq_paths[@]}"
     local r1_fastq
     local r2_fastq
     local lane_bam
     declare -a lane_bams  # declare empty
     for fastq in "${local_fastq_paths[@]}"; do
-      if [[ $(count_substring "_R1_" "${fastq}") -eq 1 ]]; then
+      info "Encountered FASTQ: ${fastq}"
+      if [[ $(count_substring "_R1_" "${fastq}") -gt 0 ]]; then
         r1_fastq="${fastq}"
         r2_fastq="${r1_fastq//_R1_/_R2_}"
-        lane_bam="${LOCAL_LANE_BAM_DIR}/${r1_fastq}.bam"
+        lane_bam="${LOCAL_LANE_BAM_DIR}/${r1_fastq//"gs://"}.bam"
         info "Start creating lane bam ${lane_bam}"
         "${BWA}" mem -Y -t "${thread_count}" "${local_ref_genome}" "${r1_fastq}" "${r2_fastq}" | \
               "${SAMBAMBA}" view -f "bam" -S -l 0 "/dev/stdin" | \
@@ -638,17 +640,24 @@ do_count_mapping_coords() {
 
 fill_local_cache_wildcard() {
   local wildcard_bucket_path=$1 && shift
+  if [[ $# -gt 0 ]]; then
+    local -n local_paths=$1 && shift
+    local track_local_paths=true
+  fi
   [[ -n ${wildcard_bucket_path} ]] || die "Not enough arguments to ${FUNCNAME[0]}"
 
-  declare -a local_paths  # declare empty
-  local bucket_path
-  local local_path
   for bucket_path in $("${GSUTIL}" ls "${wildcard_bucket_path}"); do
-    local_path=$(fill_local_cache "${bucket_path}") || die "Could not get local path for ${bucket_path}"
-    local_paths+=("${local_path}")
+    fill_local_cache "${bucket_path}" || die "Could not get local path for ${bucket_path}"
   done
 
-  echo "${local_paths[@]}"
+  if [[ ${track_local_paths} ]]; then
+    local bucket_path
+    local local_path
+    for bucket_path in $("${GSUTIL}" ls "${wildcard_bucket_path}"); do
+      local_path=$(get_local_cache_path "${bucket_path}") || die "Could not find local path for ${bucket_path}"
+      local_paths+=("${local_path}")
+    done
+  fi
 }
 
 fill_local_cache() {
@@ -658,7 +667,6 @@ fill_local_cache() {
   local_path=$(get_local_cache_path "${bucket_path}") || die "Could not get local path for ${bucket_path}"
 
   if [[ ! -f ${local_path} ]]; then
-    info "Download ${bucket_path}"
     "${GSUTIL}" -m cp "${bucket_path}" "${local_path}"
   fi
   [[ -f ${local_path} ]] || die "Download of ${bucket_path} failed"
