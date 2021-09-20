@@ -201,7 +201,7 @@ do_align() {
   if [[ -z ${input} ]]; then
     print_error_msg "Variable 'input' has not been set"
     input_error=true
-  elif [[ ! "${input}" =~ ^gs://[*-/._a-zA-Z0-9]+.fastq.gz ]]; then
+  elif [[ ! "${input}" =~ ^gs://[*-/._a-zA-Z0-9]+.fastq.gz$ ]]; then
     print_error_msg "Variable 'input' needs to be set to a wilcard path to fastq files in a bucket, e.g. gs://some-kind/of/path*.fastq.gz"
     input_error=true
   fi
@@ -215,7 +215,7 @@ do_align() {
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam ]]; then
+  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.bam'"
     input_error=true
   fi
@@ -366,7 +366,7 @@ do_non_umi_dedup() {
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam ]]; then
+  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.bam'"
     input_error=true
   fi
@@ -449,7 +449,7 @@ do_umi_dedup() {
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam ]]; then
+  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.bam'"
     input_error=true
   fi
@@ -533,7 +533,7 @@ do_flagstat() {
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.flagstat ]]; then
+  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.flagstat$ ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.flagstat'"
     input_error=true
   fi
@@ -609,7 +609,7 @@ do_count_mapping_coords() {
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.txt ]]; then
+  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.txt$ ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.txt'"
     input_error=true
   fi
