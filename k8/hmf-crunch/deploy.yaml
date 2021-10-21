@@ -3,7 +3,7 @@ kind: Job
 metadata:
   name: VAR_JOB_NAME
   labels:
-    app: k8-flagstat
+    app: k8analysis
 spec:
   backoffLimit: 1
   template:
