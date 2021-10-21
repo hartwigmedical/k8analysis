@@ -7,7 +7,7 @@ JAVA="java"
 BWA="$HOME/bwa"
 SAMBAMBA="$HOME/sambamba"
 UMI_COLLAPSE_DIR="$HOME/UMICollapse"
-UMI_COLLAPSE="${UMI_COLLAPSE_DIR}/umicollapse"
+UMI_COLLAPSE="java -server -Xms8G -Xmx16G -Xss20M -jar ${UMI_COLLAPSE_DIR}/umicollapse.jar"
 
 LOCAL_LANE_BAM_DIR="$HOME/lane_bams"
 LOCAL_GCP_CACHE_DIR="$HOME/gcp_cache"
@@ -109,7 +109,6 @@ execute_analysis() {
   tool_exists_or_die "${JAVA}"
   file_exists_or_die "${BWA}"
   file_exists_or_die "${SAMBAMBA}"
-  file_exists_or_die "${UMI_COLLAPSE}"
 
   info "Passed sanity checks"
 
