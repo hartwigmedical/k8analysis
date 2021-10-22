@@ -7,7 +7,6 @@ JAVA="java"
 BWA="$HOME/bwa"
 SAMBAMBA="$HOME/sambamba"
 UMI_COLLAPSE_DIR="$HOME/UMICollapse"
-UMI_COLLAPSE="java -server -Xms8G -Xmx16G -Xss20M -jar ${UMI_COLLAPSE_DIR}/umicollapse.jar"
 
 LOCAL_LANE_BAM_DIR="$HOME/lane_bams"
 LOCAL_GCP_CACHE_DIR="$HOME/gcp_cache"
@@ -476,7 +475,8 @@ do_umi_dedup() {
     create_parent_directories "${local_output_path}" || die "Could not create parent directories for output file"
     info "Start UMI-Collapse"
     pushd "${UMI_COLLAPSE_DIR}" || die "Could not cd into UMI-Collapse dir"
-    "${UMI_COLLAPSE}" bam -i "${local_input_path}" -o "${local_output_path}" --umi-sep ":" --paired --two-pass \
+    java -server -Xms8G -Xmx16G -Xss20M -jar "${UMI_COLLAPSE_DIR}"/umicollapse.jar \
+        bam -i "${local_input_path}" -o "${local_output_path}" --umi-sep ":" --paired --two-pass \
         || die "Could not run UMI-Collapse"
     popd || die "Could not cd out of UMI-Collapse dir"
     info "Finished UMI-Collapse"
