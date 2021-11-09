@@ -30,9 +30,13 @@ print_align_usage() {
   echo "    --output <output-path>"
   echo "  [-i/--input]                              (Required)    Wildcard path to the fastqs file on that will be aligned,"
   echo "                                                          e.g. gs://some-kind/of/path*.fastq.gz"
-  echo "                                                          Make sure that for each read pair the file path for read 1 contains '_R1_' exactly once and '_R2_' zero times,"
-  echo "                                                          and that the file path for read 2 contains '_R2_' exactly once and '_R1_' zero times"
-  echo "  [-r/--ref-genome]                         (Required)    Reference genome version to align to. Either '37' or '38'."
+  echo "                                                          Make sure that for each read pair the file path for read 1"
+  echo "                                                          contains '_R1_' exactly once and '_R2_' zero times,"
+  echo "                                                          and that the file path for read 2 contains '_R2_'"
+  echo "                                                          exactly once and '_R1_' zero times"
+  echo "  [-r/--ref-genome]                         (Required)    Reference genome version to align to."
+  echo "                                                          Either '37', '38', or some GCP bucket path to a FASTA file,"
+  echo "                                                          e.g. 'gs://some/kind/of/path'."
   echo "  [-o/--output]                             (Required)    Path in bucket to which the bam will be written,"
   echo "                                                          e.g. gs://some-other-kind/of/path.bam"
   echo "                                                          Will also output an index file,"
@@ -206,8 +210,8 @@ do_align() {
   if [[ -z ${ref_genome} ]]; then
     print_error_msg "Variable 'ref-genome' has not been set"
     input_error=true
-  elif [[ ! "${ref_genome}" == "37" && ! "${ref_genome}" == "38" ]]; then
-    print_error_msg "Variable 'ref-genome' needs to be set to either 37 or 38"
+  elif [[ ! "${ref_genome}" == "37" && ! "${ref_genome}" == "38" && ! "${ref_genome}" =~ ^gs://[*-/._a-zA-Z0-9]+$ ]]; then
+    print_error_msg "Variable 'ref-genome' needs to be set to either 37, 38, or a GCP bucket path: '${ref_genome}'"
     input_error=true
   fi
   if [[ -z ${output} ]]; then
@@ -248,7 +252,9 @@ do_align() {
           die "Could not find matching _R1_ read ${other_fastq} for ${fastq}"
         fi
       else
-        die "A read-1 FASTQ file should contain _R1_ in the file path exactly once. A read-2 FASTQ file should contain _R2_ in the file path exactly once. This FASTQ file does neither: ${fastq}"
+        die "A read-1 FASTQ file should contain _R1_ in the file path exactly once.
+        A read-2 FASTQ file should contain _R2_ in the file path exactly once.
+        This FASTQ file does neither: ${fastq}"
       fi
     done
     local thread_count
@@ -264,11 +270,17 @@ do_align() {
       fill_local_cache_wildcard "${REF_GENOME_37_BUCKET_PATH}/*" || die "Could not get local version of ref genome 37"
       local_ref_genome=$(get_local_cache_path "${REF_GENOME_37_BUCKET_PATH}/${REF_GENOME_37_FASTA_FILE}") \
               || die "Could not get local path for ref genome 37"
-    else
+    elif [[ "${ref_genome}" == "38" ]]; then
       # reference genome version is 38
       fill_local_cache_wildcard "${REF_GENOME_38_BUCKET_PATH}/*" || die "Could not get local version of ref genome 38"
       local_ref_genome=$(get_local_cache_path "${REF_GENOME_38_BUCKET_PATH}/${REF_GENOME_38_FASTA_FILE}") \
               || die "Could not get local path for ref genome 38"
+    elif [[ "${ref_genome}" =~ ^gs://[*-/._a-zA-Z0-9]+$ ]]; then
+      bucket_dir_path="${ref_genome%/*}"
+      fill_local_cache_wildcard "${bucket_dir_path}/*" || die "Could not get local version of specified ref genome"
+      local_ref_genome=$(get_local_cache_path "${ref_genome}") || die "Could not get local path for specified ref genome"
+    else
+      die "Did not recognize ref genome option: ${ref_genome}"
     fi
 
     if [[ -d "${LOCAL_LANE_BAM_DIR}" ]]; then
@@ -635,7 +647,8 @@ do_count_mapping_coords() {
 
     create_parent_directories "${local_output_path}" || die "Could not create parent directories for output file"
     info "Start counting mapping coordinates"
-    "${SAMBAMBA}" view -t "${thread_count}" "${local_input_path}" | awk '{print $3 "\t" $4}' | uniq | wc -l > "${local_output_path}" || die "Could not count mapping coordinates"
+    "${SAMBAMBA}" view -t "${thread_count}" "${local_input_path}" | awk '{print $3 "\t" $4}' | uniq | wc -l > "${local_output_path}" \
+          || die "Could not count mapping coordinates"
     info "Finished counting mapping coordinates"
 
     upload_from_local_cache "${output}" || die "Failed to upload output to ${output}"
