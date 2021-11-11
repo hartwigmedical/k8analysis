@@ -729,7 +729,7 @@ file_exists_in_bucket() {
 }
 
 get_thread_count(){
-  echo $(($(grep -c processor /proc/cpuinfo) * 8 / 10 ))
+  echo $(( $(grep -c processor /proc/cpuinfo) ))
 }
 
 trim_excess_whitespace() {
