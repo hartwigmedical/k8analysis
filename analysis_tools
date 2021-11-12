@@ -203,21 +203,21 @@ do_align() {
   if [[ -z ${input} ]]; then
     print_error_msg "Variable 'input' has not been set"
     input_error=true
-  elif [[ ! "${input}" =~ ^gs://[*-/._a-zA-Z0-9]+.fastq.gz$ ]]; then
-    print_error_msg "Variable 'input' needs to be set to a wilcard path to fastq files in a bucket, e.g. gs://some-kind/of/path*.fastq.gz"
+  elif [[ ! ${input} =~ ^gs://[*-/._a-zA-Z0-9]+.fastq.gz$ ]]; then
+    print_error_msg "Variable 'input' needs to be set to a wildcard path to fastq files in a bucket, e.g. gs://some-kind/of/path*.fastq.gz: '${input}'"
     input_error=true
   fi
   if [[ -z ${ref_genome} ]]; then
     print_error_msg "Variable 'ref-genome' has not been set"
     input_error=true
-  elif [[ ! "${ref_genome}" == "37" && ! "${ref_genome}" == "38" && ! "${ref_genome}" =~ ^gs://[*-/._a-zA-Z0-9]+$ ]]; then
+  elif [[ ! "${ref_genome}" == "37" && ! "${ref_genome}" == "38" && ! ${ref_genome} =~ ^gs://[*-/._a-zA-Z0-9]+$ ]]; then
     print_error_msg "Variable 'ref-genome' needs to be set to either 37, 38, or a GCP bucket path: '${ref_genome}'"
     input_error=true
   fi
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+  elif [[ ! ${output} =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.bam'"
     input_error=true
   fi
@@ -275,7 +275,7 @@ do_align() {
       fill_local_cache_wildcard "${REF_GENOME_38_BUCKET_PATH}/*" || die "Could not get local version of ref genome 38"
       local_ref_genome=$(get_local_cache_path "${REF_GENOME_38_BUCKET_PATH}/${REF_GENOME_38_FASTA_FILE}") \
               || die "Could not get local path for ref genome 38"
-    elif [[ "${ref_genome}" =~ ^gs://[*-/._a-zA-Z0-9]+$ ]]; then
+    elif [[ ${ref_genome} =~ ^gs://[*-/._a-zA-Z0-9]+$ ]]; then
       bucket_dir_path="${ref_genome%/*}"
       fill_local_cache_wildcard "${bucket_dir_path}/*" || die "Could not get local version of specified ref genome"
       local_ref_genome=$(get_local_cache_path "${ref_genome}") || die "Could not get local path for specified ref genome"
@@ -300,7 +300,6 @@ do_align() {
         r2_fastq="${r1_fastq//_R1_/_R2_}"
         lane_bam="${LOCAL_LANE_BAM_DIR}/${r1_fastq//"gs://"}.bam"
         create_parent_directories "${lane_bam}" || die "Could not create parent directories for lane bam"
-        # TODO: implement create_parent_directories
         info "Start creating lane bam ${lane_bam}"
         "${BWA}" mem -Y -t "${thread_count}" "${local_ref_genome}" "${r1_fastq}" "${r2_fastq}" | \
               "${SAMBAMBA}" view -f "bam" -S -l 0 "/dev/stdin" | \
@@ -369,14 +368,14 @@ do_non_umi_dedup() {
   if [[ -z ${input} ]]; then
     print_error_msg "Variable 'input' has not been set"
     input_error=true
-  elif [[ ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+  elif [[ ! ${input} =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
     input_error=true
   fi
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+  elif [[ ! ${output} =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.bam'"
     input_error=true
   fi
@@ -452,14 +451,14 @@ do_umi_dedup() {
   if [[ -z ${input} ]]; then
     print_error_msg "Variable 'input' has not been set"
     input_error=true
-  elif [[ ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+  elif [[ ! ${input} =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
     input_error=true
   fi
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+  elif [[ ! ${output} =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.bam'"
     input_error=true
   fi
@@ -537,14 +536,14 @@ do_flagstat() {
   if [[ -z ${input} ]]; then
     print_error_msg "Variable 'input' has not been set"
     input_error=true
-  elif [[ ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+  elif [[ ! ${input} =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
     input_error=true
   fi
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.flagstat$ ]]; then
+  elif [[ ! ${output} =~ ^gs://[-/._a-zA-Z0-9]+.flagstat$ ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.flagstat'"
     input_error=true
   fi
@@ -613,14 +612,14 @@ do_count_mapping_coords() {
   if [[ -z ${input} ]]; then
     print_error_msg "Variable 'input' has not been set"
     input_error=true
-  elif [[ ! "${input}" =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
+  elif [[ ! ${input} =~ ^gs://[-/._a-zA-Z0-9]+.bam$ ]]; then
     print_error_msg "Variable 'input' needs to be set to a path to a bam file in a bucket, e.g. gs://some-kind/of/path.bam"
     input_error=true
   fi
   if [[ -z ${output} ]]; then
     print_error_msg "Variable 'output' has not been set"
     input_error=true
-  elif [[ ! "${output}" =~ ^gs://[-/._a-zA-Z0-9]+.txt$ ]]; then
+  elif [[ ! ${output} =~ ^gs://[-/._a-zA-Z0-9]+.txt$ ]]; then
     print_error_msg "Variable 'output' needs to be set to a path of the form 'gs://some-kind/of/path.txt'"
     input_error=true
   fi
