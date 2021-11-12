@@ -21,11 +21,11 @@ SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE=4500000
 REAL_EXECUTE_TRUE="REAL_EXECUTE_TRUE"
 REAL_EXECUTE_FALSE="REAL_EXECUTE_FALSE"
 
-REGEX_PATTERN_FASTQ_BUCKET_PATH='^gs://[*-/._a-zA-Z0-9]+.fastq.gz$'
-REGEX_PATTERN_BAM_BUCKET_PATH='^gs://[-/._a-zA-Z0-9]+.bam$'
-REGEX_PATTERN_FLAGSTAT_BUCKET_PATH='^gs://[-/._a-zA-Z0-9]+.flagstat$'
-REGEX_PATTERN_TXT_BUCKET_PATH='^gs://[-/._a-zA-Z0-9]+.txt'
-REGEX_PATTERN_BUCKET_PATH='^gs://[*-/._a-zA-Z0-9]+$'
+REGEX_PATTERN_FASTQ_BUCKET_PATH='^gs://[a-zA-Z0-9*-/._]+.fastq.gz$'
+REGEX_PATTERN_BAM_BUCKET_PATH='^gs://[a-zA-Z0-9-/._]+.bam$'
+REGEX_PATTERN_FLAGSTAT_BUCKET_PATH='^gs://[a-zA-Z0-9-/._]+.flagstat$'
+REGEX_PATTERN_TXT_BUCKET_PATH='^gs://[a-zA-Z0-9-/._]+.txt'
+REGEX_PATTERN_BUCKET_PATH='^gs://[a-zA-Z0-9*-/._]+$'
 
 print_align_usage() {
   echo "Run bwa mem alignment of paired reads at GCP. "
