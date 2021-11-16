@@ -21,11 +21,12 @@ SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE=4500000
 REAL_EXECUTE_TRUE="REAL_EXECUTE_TRUE"
 REAL_EXECUTE_FALSE="REAL_EXECUTE_FALSE"
 
-REGEX_PATTERN_FASTQ_BUCKET_PATH='^gs://[a-zA-Z0-9*/._-]+.fastq.gz$'
-REGEX_PATTERN_BAM_BUCKET_PATH='^gs://[a-zA-Z0-9/._-]+.bam$'
-REGEX_PATTERN_FLAGSTAT_BUCKET_PATH='^gs://[a-zA-Z0-9/._-]+.flagstat$'
-REGEX_PATTERN_TXT_BUCKET_PATH='^gs://[a-zA-Z0-9/._-]+.txt$'
+REGEX_PATTERN_FASTQ_BUCKET_PATH='^gs://[a-zA-Z0-9*/._-]+\.fastq\.gz$'
+REGEX_PATTERN_BAM_BUCKET_PATH='^gs://[a-zA-Z0-9/._-]+\.bam$'
+REGEX_PATTERN_FLAGSTAT_BUCKET_PATH='^gs://[a-zA-Z0-9/._-]+\.flagstat$'
+REGEX_PATTERN_TXT_BUCKET_PATH='^gs://[a-zA-Z0-9/._-]+\.txt$'
 REGEX_PATTERN_BUCKET_PATH='^gs://[a-zA-Z0-9*/._-]+$'
+REGEX_PATTERN_RECORD_GROUP_ID='(.*_){2}S[0-9]+_L[0-9]{3}_R[1-2].*'
 
 print_align_usage() {
   echo "Run bwa mem alignment of paired reads at GCP. "
@@ -297,16 +298,32 @@ do_align() {
     local r1_fastq
     local r2_fastq
     local lane_bam
+    local r1_fastq_file_name
+    local record_group_id
+    local flowcell_id
+    local read_group_string
     declare -a lane_bams  # declare empty
+
+    local bam_file_name="${output##*/}"
+    local sample_name="${bam_file_name%%.*}"
     for fastq in "${local_fastq_paths[@]}"; do
       info "Encountered FASTQ: ${fastq}"
       if [[ $(count_substring "_R1_" "${fastq}") -gt 0 ]]; then
         r1_fastq="${fastq}"
         r2_fastq="${r1_fastq//_R1_/_R2_}"
+
         lane_bam="${LOCAL_LANE_BAM_DIR}/${r1_fastq//"gs://"}.bam"
         create_parent_directories "${lane_bam}" || die "Could not create parent directories for lane bam"
+        r1_fastq_file_name="${r1_fastq##*/}"
+        record_group_id="${r1_fastq_file_name%%.*}"
+        # assert name format is proper
+        [[ $record_group_id =~ $REGEX_PATTERN_RECORD_GROUP_ID ]] || \
+              die "Record group ID '${record_group_id}' does not match required regex '${REGEX_PATTERN_RECORD_GROUP_ID}'"
+        flowcell_id="$(cut -d'_' -f2 <<<"${record_group_id}")" || \
+              die "Could not get flowcell ID from record group ID '${record_group_id}'"
+        read_group_string="@RG\tID:${record_group_id}\tLB:${sample_name}\tPL:ILLUMINA\tPU:${flowcell_id}\tSM:${sample_name}"
         info "Start creating lane bam ${lane_bam}"
-        "${BWA}" mem -Y -t "${thread_count}" "${local_ref_genome}" "${r1_fastq}" "${r2_fastq}" | \
+        "${BWA}" mem -Y -t "${thread_count}" -R "${read_group_string}" "${local_ref_genome}" "${r1_fastq}" "${r2_fastq}" | \
               "${SAMBAMBA}" view -f "bam" -S -l 0 "/dev/stdin" | \
               "${SAMBAMBA}" sort -o "${lane_bam}" "/dev/stdin" || die "Failed creating lane bam ${lane_bam}"
         lane_bams+=("${lane_bam}")
