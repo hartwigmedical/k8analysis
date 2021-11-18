@@ -262,7 +262,7 @@ run() {
   fi
 
   # Make sure correct credentials are available
-  gcloud container clusters get-credentials rerun-cluster --region europe-west4 --project hmf-crunch \
+  gcloud container clusters get-credentials research-cluster-prod-1 --region europe-west4 --project hmf-crunch \
         || die "Could not find credentials at gcp"
 
   local clean_job_name
