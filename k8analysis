@@ -2,7 +2,7 @@
 
 REPO_DIR_NAME="$(dirname "$0")" || exit 1
 
-source "${REPO_DIR_NAME}/analysis_tools" || exit 1
+source "${REPO_DIR_NAME}/src/analysis_tools" || exit 1
 
 SCRIPT_NAME="$(basename "$0")" || exit 1
 
