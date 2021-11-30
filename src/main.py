@@ -2,6 +2,7 @@ import logging
 import sys
 from typing import List
 
+from gcp_client import GCPClient
 from parser import Parser
 
 
@@ -14,8 +15,9 @@ def main(arguments: List[str]) -> None:
     jobs = Parser.extract_jobs(arguments)
 
     if jobs:
+        gcp_client = GCPClient()
         for job in jobs:
-            job.execute()
+            job.execute(gcp_client)
     else:
         logging.warning("No jobs detected.")
 

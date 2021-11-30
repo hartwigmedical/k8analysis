@@ -1,8 +1,9 @@
 import argparse
 import logging
 import re
-from typing import List, Pattern
+from typing import List, Pattern, Union
 
+from gcp_client import GCPPath
 from jobs import JobType, Job, AlignJob
 
 
@@ -71,17 +72,17 @@ class Parser(object):
         return AlignJob(parsed_args.input, parsed_args.ref_genome, parsed_args.output)
 
     @classmethod
-    def parse_wildcard_fastq_bucket_path(cls, arg_value: str) -> str:
+    def parse_wildcard_fastq_bucket_path(cls, arg_value: str) -> GCPPath:
         cls.assert_argument_matches_regex(arg_value, cls.WILDCARD_FASTQ_BUCKET_PATH_REGEX)
-        return arg_value
+        return GCPPath.from_string(arg_value)
 
     @classmethod
-    def parse_bam_bucket_path(cls, arg_value: str) -> str:
+    def parse_bam_bucket_path(cls, arg_value: str) -> GCPPath:
         cls.assert_argument_matches_regex(arg_value, cls.BAM_BUCKET_PATH_REGEX)
-        return arg_value
+        return GCPPath.from_string(arg_value)
 
     @classmethod
-    def parse_reference_genome_value(cls, arg_value: str) -> str:
+    def parse_reference_genome_value(cls, arg_value: str) -> Union[str, GCPPath]:
         arg_value_format_recognized = (
             arg_value == cls.REF_GENOME_37_ARGUMENT
             or arg_value == cls.REF_GENOME_38_ARGUMENT
@@ -93,10 +94,13 @@ class Parser(object):
                 f"or regex '{cls.BUCKET_PATH_REGEX.pattern}'."
             )
             raise argparse.ArgumentTypeError(error_msg)
-        return arg_value
+        if arg_value == cls.REF_GENOME_37_ARGUMENT or arg_value == cls.REF_GENOME_38_ARGUMENT:
+            return arg_value
+        else:
+            return GCPPath.from_string(arg_value)
 
     @classmethod
-    def assert_argument_matches_regex(cls, arg_value: str, pattern: Pattern) -> None:
+    def assert_argument_matches_regex(cls, arg_value: str, pattern: Pattern[str]) -> None:
         if not pattern.match(arg_value):
             error_msg = f"Value '{arg_value}' does not match the regex pattern '{pattern.pattern}'."
             raise argparse.ArgumentTypeError(error_msg)
