@@ -66,13 +66,13 @@ class Parser(object):
             "Will also output an index file, e.g. 'gs://some-other-kind/of/path.bam.bai'."
         )
         parser.add_argument(
-            "--input", "-i", type=cls.parse_wildcard_fastq_bucket_path, required=True, help=input_help,
+            "--input", "-i", type=cls.parse_wildcard_fastq_gcp_path, required=True, help=input_help,
         )
         parser.add_argument(
             "--ref-genome", "-r", type=cls.parse_reference_genome_value, required=True, help=ref_genome_help,
         )
         parser.add_argument(
-            "--output", "-o", type=cls.parse_bam_bucket_path, required=True, help=output_help,
+            "--output", "-o", type=cls.parse_bam_gcp_path, required=True, help=output_help,
         )
 
         parsed_args = parser.parse_args(job_args)
@@ -80,12 +80,12 @@ class Parser(object):
         return AlignJob(parsed_args.input, parsed_args.ref_genome, parsed_args.output)
 
     @classmethod
-    def parse_wildcard_fastq_bucket_path(cls, arg_value: str) -> GCPPath:
+    def parse_wildcard_fastq_gcp_path(cls, arg_value: str) -> GCPPath:
         cls.assert_argument_matches_regex(arg_value, cls.WILDCARD_FASTQ_BUCKET_PATH_REGEX)
         return GCPPath.from_string(arg_value)
 
     @classmethod
-    def parse_bam_bucket_path(cls, arg_value: str) -> GCPPath:
+    def parse_bam_gcp_path(cls, arg_value: str) -> GCPPath:
         cls.assert_argument_matches_regex(arg_value, cls.BAM_BUCKET_PATH_REGEX)
         return GCPPath.from_string(arg_value)
 

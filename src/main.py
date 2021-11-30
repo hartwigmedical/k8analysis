@@ -1,9 +1,12 @@
 import logging
 import sys
+from pathlib import Path
 from typing import List
 
-from gcp_client import GCPClient
 from arg_parser import Parser
+from service_provider import ServiceProvider
+
+LOCAL_GCP_FILE_CACHE = Path.home() / "gcp_local_file_cache"
 
 
 def main(arguments: List[str]) -> None:
@@ -15,9 +18,9 @@ def main(arguments: List[str]) -> None:
     jobs = Parser.extract_jobs(arguments)
 
     if jobs:
-        gcp_client = GCPClient()
+        service_provider = ServiceProvider(LOCAL_GCP_FILE_CACHE)
         for job in jobs:
-            job.execute(gcp_client)
+            job.execute(service_provider)
     else:
         logging.warning("No jobs detected.")
 
