@@ -1,7 +1,7 @@
 import argparse
 import logging
 import re
-from typing import List, Pattern, Union
+from typing import List, Pattern
 
 from gcp_client import GCPPath
 from jobs import JobType, Job, AlignJob
@@ -10,6 +10,10 @@ from jobs import JobType, Job, AlignJob
 class Parser(object):
     REF_GENOME_37_ARGUMENT = "37"
     REF_GENOME_38_ARGUMENT = "38"
+
+    REF_GENOME_37_BUCKET_FASTA_PATH="gs://common-resources/reference_genome/37/Homo_sapiens.GRCh37.GATK.illumina.fasta"
+    REF_GENOME_38_BUCKET_FASTA_PATH="gs://common-resources/reference_genome/38/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna"
+
     BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+$")
     BAM_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.bam$")
     WILDCARD_FASTQ_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9*/._-]+\.fastq\.gz$")
@@ -82,7 +86,7 @@ class Parser(object):
         return GCPPath.from_string(arg_value)
 
     @classmethod
-    def parse_reference_genome_value(cls, arg_value: str) -> Union[str, GCPPath]:
+    def parse_reference_genome_value(cls, arg_value: str) -> GCPPath:
         arg_value_format_recognized = (
             arg_value == cls.REF_GENOME_37_ARGUMENT
             or arg_value == cls.REF_GENOME_38_ARGUMENT
@@ -94,10 +98,15 @@ class Parser(object):
                 f"or regex '{cls.BUCKET_PATH_REGEX.pattern}'."
             )
             raise argparse.ArgumentTypeError(error_msg)
-        if arg_value == cls.REF_GENOME_37_ARGUMENT or arg_value == cls.REF_GENOME_38_ARGUMENT:
-            return arg_value
+
+        if arg_value == cls.REF_GENOME_37_ARGUMENT:
+            bucket_fasta_path = cls.REF_GENOME_37_BUCKET_FASTA_PATH
+        elif arg_value == cls.REF_GENOME_38_ARGUMENT:
+            bucket_fasta_path = cls.REF_GENOME_38_BUCKET_FASTA_PATH
         else:
-            return GCPPath.from_string(arg_value)
+            # arg_value is itself a GCP bucket path
+            bucket_fasta_path = arg_value
+        return GCPPath.from_string(bucket_fasta_path)
 
     @classmethod
     def assert_argument_matches_regex(cls, arg_value: str, pattern: Pattern[str]) -> None:

@@ -32,7 +32,7 @@ class Job(ABC):
 @dataclass(frozen=True)
 class AlignJob(Job):
     input_path: GCPPath
-    ref_genome: Union[str, GCPPath]
+    ref_genome: GCPPath
     output_path: GCPPath
 
     @classmethod
