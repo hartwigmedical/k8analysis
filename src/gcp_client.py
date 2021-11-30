@@ -86,6 +86,12 @@ class GCPClient(object):
 
 @dataclass(frozen=True)
 class GCPFileCache(object):
+    """
+    Local cache of GCP files that mirrors the file structure in the buckets.
+
+    It does this to avoid accidental name clashes, and to make sure the same file at GCP
+    always gets the same local path, to help with caching.
+    """
     local_directory: Path
     gcp_client: GCPClient
 

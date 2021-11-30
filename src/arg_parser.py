@@ -8,6 +8,7 @@ from jobs import JobType, Job, AlignJob
 
 
 class Parser(object):
+    """Parse command line arguments and extract jobs from them."""
     REF_GENOME_37_ARGUMENT = "37"
     REF_GENOME_38_ARGUMENT = "38"
 

@@ -1,4 +1,6 @@
 import logging
+import re
+import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -12,7 +14,9 @@ READ1_FASTQ_SUBSTRING = "_R1_"
 READ2_FASTQ_SUBSTRING = "_R2_"
 READ_PAIR_FASTQ_SUBSTRING = "_R*_"
 
-LOCAL_LANE_BAM_DIR = Path.home() / "local_lane_bam_dir"
+LOCAL_WORKING_DIR = Path.home() / "local_lane_bam_dir"
+
+RECORD_GROUP_ID_REGEX = re.compile(r"(.*_){2}S[0-9]+_L[0-9]{3}_R[1-2].*")
 
 
 @dataclass(frozen=True, order=True)
@@ -94,16 +98,13 @@ class AlignJob(Job):
         gcp_file_cache.multiple_download_to_local(fastq_gcp_paths + reference_genome_bucket_files)
         logging.info("Finished download of input files")
 
-        self._do_alignment_locally()
+        self._do_alignment_locally(fastq_pairs, service_provider)
 
         logging.info("Starting upload of output files")
         gcp_file_cache.multiple_upload_from_local([self.output_path, self.output_path.append_suffix(".bai")])
         logging.info("Finished upload of output files")
 
         logging.info(f"Finished {self.get_job_type().get_job_name()} job")
-
-    def _do_alignment_locally(self) -> None:
-        raise NotImplementedError(f"Implement this!")
 
     def _pair_up_fastq_paths(self, fastq_gcp_paths: List[GCPPath]) -> List[FastqPair]:
         pair_name_to_read1 = {}
@@ -115,10 +116,10 @@ class AlignJob(Job):
             read2_subtring_count = fastq_file_name.count(READ2_FASTQ_SUBSTRING)
 
             if read1_subtring_count == 1 and read2_subtring_count == 0:
-                pair_name = fastq_file_name.replace(READ1_FASTQ_SUBSTRING, READ_PAIR_FASTQ_SUBSTRING)
+                pair_name = fastq_file_name.replace(READ1_FASTQ_SUBSTRING, READ_PAIR_FASTQ_SUBSTRING).split(".")[0]
                 pair_name_to_read1[pair_name] = fastq_gcp_path
             elif read1_subtring_count == 0 and read2_subtring_count == 1:
-                pair_name = fastq_file_name.replace(READ2_FASTQ_SUBSTRING, READ_PAIR_FASTQ_SUBSTRING)
+                pair_name = fastq_file_name.replace(READ2_FASTQ_SUBSTRING, READ_PAIR_FASTQ_SUBSTRING).split(".")[0]
                 pair_name_to_read2[pair_name] = fastq_gcp_path
             else:
                 raise ValueError(f"The FASTQ file is not marked clearly as read 1 or read 2: {fastq_gcp_path}")
@@ -133,3 +134,76 @@ class AlignJob(Job):
         fastq_pairs.sort()
 
         return fastq_pairs
+
+    def _do_alignment_locally(self, fastq_pairs: List[FastqPair], service_provider: ServiceProvider) -> None:
+        if LOCAL_WORKING_DIR.is_dir():
+            LOCAL_WORKING_DIR.rmdir()
+        elif LOCAL_WORKING_DIR.exists():
+            LOCAL_WORKING_DIR.unlink()
+        LOCAL_WORKING_DIR.mkdir(parents=True)
+
+        local_lane_bams: List[Path] = []
+        for fastq_pair in fastq_pairs:
+            local_lane_bam = LOCAL_WORKING_DIR / f"{fastq_pair.pair_name}.bam"
+            self._do_lane_alignment_locally(fastq_pair, local_lane_bam, service_provider)
+            local_lane_bams.append(local_lane_bam)
+
+        self._create_merged_bam_with_index(local_lane_bams, service_provider)
+
+        LOCAL_WORKING_DIR.rmdir()
+
+    def _create_merged_bam_with_index(self, local_lane_bams: List[Path], service_provider: ServiceProvider) -> None:
+        local_final_bam_path = service_provider.get_gcp_file_cache().get_local_path(self.output_path)
+
+        bash_toolbox = service_provider.get_bash_toolbox()
+        if len(local_lane_bams) == 1:
+            logging.info("Only one lane bam, so lane bam is merged bam.")
+            shutil.move(str(local_lane_bams[0]), str(local_final_bam_path))
+        else:
+            logging.info("Start merging lane bams")
+            bash_toolbox.merge_bams(local_lane_bams, local_final_bam_path)
+            logging.info("Finished merging lane bams")
+
+        logging.info("Start creating index for merged bam")
+        bash_toolbox.create_bam_index(local_final_bam_path)
+        logging.info("Finished creating index for merged bam")
+
+    def _do_lane_alignment_locally(
+            self, fastq_pair: FastqPair, local_lane_bam: Path, service_provider: ServiceProvider,
+    ) -> None:
+        logging.info(f"Start creating lane bam {local_lane_bam}")
+
+        gcp_file_cache = service_provider.get_gcp_file_cache()
+
+        local_read1_fastq_path = gcp_file_cache.get_local_path(fastq_pair.read1)
+        local_read2_fastq_path = gcp_file_cache.get_local_path(fastq_pair.read2)
+        local_reference_genome_path = gcp_file_cache.get_local_path(self.ref_genome)
+        local_final_bam_path = gcp_file_cache.get_local_path(self.output_path)
+
+        read_group_string = self._get_read_group_string(local_read1_fastq_path, local_final_bam_path)
+
+        logging.info(f"Start alignment for lane bam {local_lane_bam}")
+        service_provider.get_bash_toolbox().align_dna_bam(
+            local_read1_fastq_path,
+            local_read2_fastq_path,
+            local_reference_genome_path,
+            local_lane_bam,
+            read_group_string,
+        )
+        logging.info(f"Finished creating lane bam {local_lane_bam}")
+
+    def _get_read_group_string(self, local_read1_fastq_path: Path, local_output_final_bam_path: Path) -> str:
+        record_group_id = local_read1_fastq_path.name.split(".")[0]
+        if not RECORD_GROUP_ID_REGEX.match(record_group_id):
+            error_msg = (
+                f"Record group ID '{record_group_id}' does not match "
+                f"the required regex '{RECORD_GROUP_ID_REGEX.pattern}'"
+            )
+            raise ValueError(error_msg)
+        sample_name = local_output_final_bam_path.name.split(".")[0]
+        flowcell_id = record_group_id.split("_")[1]
+
+        read_group_string = (
+            f"@RG\tID:{record_group_id}\tLB:{sample_name}\tPL:ILLUMINA\tPU:{flowcell_id}\tSM:{sample_name}"
+        )
+        return read_group_string
