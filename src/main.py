@@ -3,7 +3,7 @@ import sys
 from typing import List
 
 from gcp_client import GCPClient
-from parser import Parser
+from arg_parser import Parser
 
 
 def main(arguments: List[str]) -> None:

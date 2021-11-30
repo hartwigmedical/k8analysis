@@ -1,9 +1,11 @@
+import fnmatch
 from dataclasses import dataclass
+from typing import List
 
 from google.cloud import storage
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class GCPPath(object):
     bucket_name: str
     relative_path: str
@@ -27,5 +29,16 @@ class GCPClient(object):
     def file_exists(self, path: GCPPath) -> bool:
         return bool(self._get_blob(path).exists())
 
+    def get_matching_paths(self, path: GCPPath) -> List[GCPPath]:
+        matching_paths: List[GCPPath] = []
+        prefix_to_match = path.relative_path.split("*")[0]
+        for blob in self._get_bucket(path.bucket_name).list_blobs(prefix=prefix_to_match):
+            if fnmatch.fnmatch(blob.name, path.relative_path):
+                matching_paths.append(GCPPath(path.bucket_name, blob.name))
+        return matching_paths
+
     def _get_blob(self, path: GCPPath) -> storage.Blob:
-        return self._client.get_bucket(path.bucket_name).blob(path.relative_path)
+        return self._get_bucket(path.bucket_name).blob(path.relative_path)
+
+    def _get_bucket(self, bucket_name: str) -> storage.Bucket:
+        return self._client.get_bucket(bucket_name)

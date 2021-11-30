@@ -11,8 +11,12 @@ class Parser(object):
     REF_GENOME_37_ARGUMENT = "37"
     REF_GENOME_38_ARGUMENT = "38"
 
-    REF_GENOME_37_BUCKET_FASTA_PATH="gs://common-resources/reference_genome/37/Homo_sapiens.GRCh37.GATK.illumina.fasta"
-    REF_GENOME_38_BUCKET_FASTA_PATH="gs://common-resources/reference_genome/38/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna"
+    REF_GENOME_37_BUCKET_FASTA_PATH = (
+        "gs://common-resources/reference_genome/37/Homo_sapiens.GRCh37.GATK.illumina.fasta"
+    )
+    REF_GENOME_38_BUCKET_FASTA_PATH = (
+        "gs://common-resources/reference_genome/38/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna"
+    )
 
     BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+$")
     BAM_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.bam$")
