@@ -8,10 +8,12 @@ from gcp_client import GCPClient, GCPPath
 
 READ1_FASTQ_SUBSTRING = "_R1_"
 READ2_FASTQ_SUBSTRING = "_R2_"
+READ_PAIR_FASTQ_SUBSTRING = "_R*_"
 
 
 @dataclass(frozen=True, order=True)
 class FastqPair(object):
+    pair_name: str
     read1: GCPPath
     read2: GCPPath
 
@@ -65,14 +67,23 @@ class AlignJob(Job):
             matching_path_string = "\n".join(str(path) for path in fastq_bucket_paths)
             logging.info(f"Found FASTQ paths matching input path {self.input_path}:\n{matching_path_string}")
         else:
-            logging.warning(f"Could not find FASTQ paths matching the input path {self.input_path}")
-            return
+            raise ValueError(f"Could not find FASTQ paths matching the input path {self.input_path}")
 
         fastq_pairs = self._pair_up_fastq_paths(fastq_bucket_paths)
         paired_fastqs_string = "\n\n".join(
             f"Read1: {fastq_pair.read1}\nRead2: {fastq_pair.read2}" for fastq_pair in fastq_pairs
         )
         logging.info(f"The FASTQ paths have been paired up:\n{paired_fastqs_string}")
+
+        logging.info(self.ref_genome.get_parent_directory())
+        reference_genome_bucket_files = gcp_client.get_files_in_directory(self.ref_genome.get_parent_directory())
+        if reference_genome_bucket_files:
+            reference_genome_files_string = "\n".join(str(path) for path in reference_genome_bucket_files)
+            logging.info(f"Identified reference genome files to download:\n{reference_genome_files_string}")
+        else:
+            raise ValueError(f"Could not find reference genome paths matching the given path {self.ref_genome}")
+
+        files_to_download = fastq_bucket_paths + reference_genome_bucket_files
 
 
         raise NotImplementedError(f"Implement this!")
@@ -89,10 +100,10 @@ class AlignJob(Job):
             read2_subtring_count = fastq_file_name.count(READ2_FASTQ_SUBSTRING)
 
             if read1_subtring_count == 1 and read2_subtring_count == 0:
-                pair_name = fastq_file_name.replace(READ1_FASTQ_SUBSTRING, "")
+                pair_name = fastq_file_name.replace(READ1_FASTQ_SUBSTRING, READ_PAIR_FASTQ_SUBSTRING)
                 pair_name_to_read1[pair_name] = fastq_bucket_path
             elif read1_subtring_count == 0 and read2_subtring_count == 1:
-                pair_name = fastq_file_name.replace(READ2_FASTQ_SUBSTRING, "")
+                pair_name = fastq_file_name.replace(READ2_FASTQ_SUBSTRING, READ_PAIR_FASTQ_SUBSTRING)
                 pair_name_to_read2[pair_name] = fastq_bucket_path
             else:
                 raise ValueError(f"The FASTQ file is not marked clearly as read 1 or read 2: {fastq_bucket_path}")
@@ -101,7 +112,7 @@ class AlignJob(Job):
             raise ValueError(f"Not all FASTQ files can be matched up in proper pairs of read 1 and read 2")
 
         fastq_pairs = [
-            FastqPair(pair_name_to_read1[pair_name], pair_name_to_read2[pair_name])
+            FastqPair(pair_name, pair_name_to_read1[pair_name], pair_name_to_read2[pair_name])
             for pair_name in pair_name_to_read1.keys()
         ]
         fastq_pairs.sort()

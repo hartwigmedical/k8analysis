@@ -21,6 +21,14 @@ class GCPPath(object):
     def __str__(self) -> str:
         return f"gs://{self.bucket_name}/{self.relative_path}"
 
+    def get_parent_directory(self) -> "GCPPath":
+        if self.relative_path[-1] == "/":
+            relative_path = self.relative_path[:-1]
+        else:
+            relative_path = self.relative_path
+        parent_directory_relative_path = "/".join(relative_path.split("/")[:-1])
+        return GCPPath(self.bucket_name, parent_directory_relative_path)
+
 
 class GCPClient(object):
     def __init__(self) -> None:
@@ -28,6 +36,14 @@ class GCPClient(object):
 
     def file_exists(self, path: GCPPath) -> bool:
         return bool(self._get_blob(path).exists())
+
+    def get_files_in_directory(self, path: GCPPath) -> List[GCPPath]:
+        if path.relative_path[-1] != "/":
+            prefix = path.relative_path + "/"
+        else:
+            prefix = path.relative_path
+        blobs = self._get_bucket(path.bucket_name).list_blobs(prefix=prefix, delimiter="/")
+        return [GCPPath(path.bucket_name, blob.name) for blob in blobs]
 
     def get_matching_paths(self, path: GCPPath) -> List[GCPPath]:
         matching_paths: List[GCPPath] = []
