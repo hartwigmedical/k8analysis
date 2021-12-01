@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from arg_parser import ArgumentParser
 from bash_toolbox import BashToolbox
 from gcp_client import GCPClient, GCPFileCache
 from google.cloud import storage
@@ -16,7 +15,6 @@ class ServiceProvider(object):
     _gcp_client: Optional[GCPClient] = None
     _library_gcp_client: Optional[storage.Client] = None
     _bash_toolbox: Optional[BashToolbox] = None
-    _argument_parser: Optional[ArgumentParser] = None
 
     def get_gcp_file_cache(self) -> GCPFileCache:
         if self._gcp_file_cache is None:
@@ -37,8 +35,3 @@ class ServiceProvider(object):
         if self._bash_toolbox is None:
             self._bash_toolbox = BashToolbox()
         return self._bash_toolbox
-
-    def get_argument_parser(self) -> ArgumentParser:
-        if self._argument_parser is None:
-            self._argument_parser = ArgumentParser()
-        return self._argument_parser

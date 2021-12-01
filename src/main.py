@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from typing import List
 
+from arg_parser import ArgumentParser
 from service_provider import ServiceProvider
 from util import set_up_logging
 
@@ -17,7 +18,7 @@ def main(arguments: List[str]) -> None:
     service_provider = ServiceProvider(LOCAL_GCP_FILE_CACHE)
 
     logging.info("Extracting jobs from arguments.")
-    jobs = service_provider.get_argument_parser().extract_jobs(arguments)
+    jobs = ArgumentParser().extract_jobs(arguments)
 
     if jobs:
         for job in jobs:
