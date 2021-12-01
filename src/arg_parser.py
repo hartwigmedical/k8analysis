@@ -2,6 +2,7 @@ import argparse
 import logging
 import re
 import sys
+from dataclasses import dataclass
 from typing import List, Pattern
 
 from gcp_client import GCPPath
@@ -9,7 +10,8 @@ from jobs import JobType, Job, AlignJob
 from util import set_up_logging
 
 
-class Parser(object):
+@dataclass(frozen=True)
+class ArgumentParser(object):
     """Parse command line arguments and extract jobs from them."""
     REF_GENOME_37_ARGUMENT = "37"
     REF_GENOME_38_ARGUMENT = "38"
@@ -25,8 +27,7 @@ class Parser(object):
     BAM_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.bam$")
     WILDCARD_FASTQ_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9*/._-]+\.fastq\.gz$")
 
-    @classmethod
-    def extract_jobs(cls, arguments: List[str]) -> List[Job]:
+    def extract_jobs(self, arguments: List[str]) -> List[Job]:
         jobs: List[Job] = []
 
         while arguments:
@@ -36,21 +37,19 @@ class Parser(object):
             job_args: List[str] = []
             while arguments and arguments[0] not in JobType.get_type_names():
                 job_args.append(arguments.pop(0))
-            job = cls.parse_job(job_type, job_args)
+            job = self.parse_job(job_type, job_args)
             jobs.append(job)
 
         return jobs
 
-    @classmethod
-    def parse_job(cls, job_type: JobType, job_args: List[str]) -> Job:
+    def parse_job(self, job_type: JobType, job_args: List[str]) -> Job:
         if job_type == JobType.ALIGN:
-            job = cls.parse_align_job(job_args)
+            job = self.parse_align_job(job_args)
         else:
             raise NotImplementedError(f"Unimplemented job type: {job_type}.")
         return job
 
-    @classmethod
-    def parse_align_job(cls, job_args: List[str]) -> AlignJob:
+    def parse_align_job(self, job_args: List[str]) -> AlignJob:
         parser = argparse.ArgumentParser(
             prog=JobType.ALIGN.get_job_name(),
             description="Run bwa mem alignment of paired reads at GCP.",
@@ -69,54 +68,50 @@ class Parser(object):
             "Will also output an index file, e.g. 'gs://some-other-kind/of/path.bam.bai'."
         )
         parser.add_argument(
-            "--input", "-i", type=cls.parse_wildcard_fastq_gcp_path, required=True, help=input_help,
+            "--input", "-i", type=self.parse_wildcard_fastq_gcp_path, required=True, help=input_help,
         )
         parser.add_argument(
-            "--ref-genome", "-r", type=cls.parse_reference_genome_value, required=True, help=ref_genome_help,
+            "--ref-genome", "-r", type=self.parse_reference_genome_value, required=True, help=ref_genome_help,
         )
         parser.add_argument(
-            "--output", "-o", type=cls.parse_bam_gcp_path, required=True, help=output_help,
+            "--output", "-o", type=self.parse_bam_gcp_path, required=True, help=output_help,
         )
 
         parsed_args = parser.parse_args(job_args)
 
         return AlignJob(parsed_args.input, parsed_args.ref_genome, parsed_args.output)
 
-    @classmethod
-    def parse_wildcard_fastq_gcp_path(cls, arg_value: str) -> GCPPath:
-        cls.assert_argument_matches_regex(arg_value, cls.WILDCARD_FASTQ_BUCKET_PATH_REGEX)
+    def parse_wildcard_fastq_gcp_path(self, arg_value: str) -> GCPPath:
+        self.assert_argument_matches_regex(arg_value, self.WILDCARD_FASTQ_BUCKET_PATH_REGEX)
         return GCPPath.from_string(arg_value)
 
-    @classmethod
-    def parse_bam_gcp_path(cls, arg_value: str) -> GCPPath:
-        cls.assert_argument_matches_regex(arg_value, cls.BAM_BUCKET_PATH_REGEX)
+    def parse_bam_gcp_path(self, arg_value: str) -> GCPPath:
+        self.assert_argument_matches_regex(arg_value, self.BAM_BUCKET_PATH_REGEX)
         return GCPPath.from_string(arg_value)
 
-    @classmethod
-    def parse_reference_genome_value(cls, arg_value: str) -> GCPPath:
+    def parse_reference_genome_value(self, arg_value: str) -> GCPPath:
         arg_value_format_recognized = (
-            arg_value == cls.REF_GENOME_37_ARGUMENT
-            or arg_value == cls.REF_GENOME_38_ARGUMENT
-            or cls.BUCKET_PATH_REGEX.match(arg_value)
+            arg_value == self.REF_GENOME_37_ARGUMENT
+            or arg_value == self.REF_GENOME_38_ARGUMENT
+            or self.BUCKET_PATH_REGEX.match(arg_value)
         )
         if not arg_value_format_recognized:
             error_msg = (
-                f"Value '{arg_value}' does not match '{cls.REF_GENOME_37_ARGUMENT}', '{cls.REF_GENOME_38_ARGUMENT}' "
-                f"or regex '{cls.BUCKET_PATH_REGEX.pattern}'."
+                f"Value '{arg_value}' does not match '{self.REF_GENOME_37_ARGUMENT}', '{self.REF_GENOME_38_ARGUMENT}' "
+                f"or regex '{self.BUCKET_PATH_REGEX.pattern}'."
             )
             raise argparse.ArgumentTypeError(error_msg)
 
-        if arg_value == cls.REF_GENOME_37_ARGUMENT:
-            bucket_fasta_path = cls.REF_GENOME_37_BUCKET_FASTA_PATH
-        elif arg_value == cls.REF_GENOME_38_ARGUMENT:
-            bucket_fasta_path = cls.REF_GENOME_38_BUCKET_FASTA_PATH
+        if arg_value == self.REF_GENOME_37_ARGUMENT:
+            bucket_fasta_path = self.REF_GENOME_37_BUCKET_FASTA_PATH
+        elif arg_value == self.REF_GENOME_38_ARGUMENT:
+            bucket_fasta_path = self.REF_GENOME_38_BUCKET_FASTA_PATH
         else:
             # arg_value is itself a GCP bucket path
             bucket_fasta_path = arg_value
         return GCPPath.from_string(bucket_fasta_path)
 
-    @classmethod
-    def assert_argument_matches_regex(cls, arg_value: str, pattern: Pattern[str]) -> None:
+    def assert_argument_matches_regex(self, arg_value: str, pattern: Pattern[str]) -> None:
         if not pattern.match(arg_value):
             error_msg = f"Value '{arg_value}' does not match the regex pattern '{pattern.pattern}'."
             raise argparse.ArgumentTypeError(error_msg)
@@ -124,4 +119,4 @@ class Parser(object):
 
 if __name__ == '__main__':
     set_up_logging()
-    Parser.extract_jobs(sys.argv[1:])
+    ArgumentParser().extract_jobs(sys.argv[1:])
