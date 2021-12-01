@@ -5,6 +5,7 @@ from typing import List
 
 from arg_parser import Parser
 from service_provider import ServiceProvider
+from util import set_up_logging
 
 LOCAL_GCP_FILE_CACHE = Path.home() / "gcp_local_file_cache"
 
@@ -25,12 +26,6 @@ def main(arguments: List[str]) -> None:
         logging.warning("No jobs detected.")
 
     logging.info("Finished k8analysis.")
-
-
-def set_up_logging() -> None:
-    logging.basicConfig(
-        format="%(asctime)s - [%(levelname)-8s] - %(message)s", level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S"
-    )
 
 
 if __name__ == '__main__':

@@ -1,10 +1,12 @@
 import argparse
 import logging
 import re
+import sys
 from typing import List, Pattern
 
 from gcp_client import GCPPath
 from jobs import JobType, Job, AlignJob
+from util import set_up_logging
 
 
 class Parser(object):
@@ -118,3 +120,8 @@ class Parser(object):
         if not pattern.match(arg_value):
             error_msg = f"Value '{arg_value}' does not match the regex pattern '{pattern.pattern}'."
             raise argparse.ArgumentTypeError(error_msg)
+
+
+if __name__ == '__main__':
+    set_up_logging()
+    Parser.extract_jobs(sys.argv[1:])
