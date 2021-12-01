@@ -28,6 +28,10 @@ RUN git clone https://github.com/Daniel-Liu-c0deb0t/UMICollapse.git \
     && cd ../.. \
     && chmod +x UMICollapse/umicollapse
 
+# install Python libraries
+ADD src/requirements.txt src/requirements.txt
+RUN pip3 install -r src/requirements.txt
+
 # add code
 ADD src src
 RUN find src -type f -exec chmod +x {} \;

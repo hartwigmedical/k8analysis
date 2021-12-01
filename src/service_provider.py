@@ -2,9 +2,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from google.cloud import storage
+
 from bash_toolbox import BashToolbox
 from gcp_client import GCPClient, GCPFileCache
-from google.cloud import storage
 
 
 @dataclass()
