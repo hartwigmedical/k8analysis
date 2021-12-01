@@ -32,4 +32,4 @@ RUN git clone https://github.com/Daniel-Liu-c0deb0t/UMICollapse.git \
 ADD src src
 RUN find src -type f -exec chmod +x {} \;
 
-ENTRYPOINT ["./src/do_analysis"]
+ENTRYPOINT ["./src/do_python_analysis"]

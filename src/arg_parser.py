@@ -1,6 +1,7 @@
 import argparse
 import logging
 import re
+import shlex
 import sys
 from dataclasses import dataclass
 from typing import List, Pattern
@@ -27,29 +28,29 @@ class ArgumentParser(object):
     BAM_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.bam$")
     WILDCARD_FASTQ_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9*/._-]+\.fastq\.gz$")
 
-    def extract_jobs(self, arguments: List[str]) -> List[Job]:
-        jobs: List[Job] = []
+    def extract_jobs(self, arguments_string: str) -> List[Job]:
+        arguments = shlex.split(arguments_string)
 
+        jobs: List[Job] = []
         while arguments:
-            job_type_arg = arguments.pop(0)
-            job_type = JobType[job_type_arg.upper()]
+            job_type = self._get_job_type(arguments.pop(0))
             logging.info(f"Detected job of type: {job_type.get_job_name()}.")
             job_args: List[str] = []
             while arguments and arguments[0] not in JobType.get_type_names():
                 job_args.append(arguments.pop(0))
-            job = self.parse_job(job_type, job_args)
+            job = self._parse_job(job_type, job_args)
             jobs.append(job)
 
         return jobs
 
-    def parse_job(self, job_type: JobType, job_args: List[str]) -> Job:
+    def _parse_job(self, job_type: JobType, job_args: List[str]) -> Job:
         if job_type == JobType.ALIGN:
-            job = self.parse_align_job(job_args)
+            job = self._parse_align_job(job_args)
         else:
             raise NotImplementedError(f"Unimplemented job type: {job_type}.")
         return job
 
-    def parse_align_job(self, job_args: List[str]) -> AlignJob:
+    def _parse_align_job(self, job_args: List[str]) -> AlignJob:
         parser = argparse.ArgumentParser(
             prog=JobType.ALIGN.get_job_name(),
             description="Run bwa mem alignment of paired reads at GCP.",
@@ -68,28 +69,28 @@ class ArgumentParser(object):
             "Will also output an index file, e.g. 'gs://some-other-kind/of/path.bam.bai'."
         )
         parser.add_argument(
-            "--input", "-i", type=self.parse_wildcard_fastq_gcp_path, required=True, help=input_help,
+            "--input", "-i", type=self._parse_wildcard_fastq_gcp_path, required=True, help=input_help,
         )
         parser.add_argument(
-            "--ref-genome", "-r", type=self.parse_reference_genome_value, required=True, help=ref_genome_help,
+            "--ref-genome", "-r", type=self._parse_reference_genome_value, required=True, help=ref_genome_help,
         )
         parser.add_argument(
-            "--output", "-o", type=self.parse_bam_gcp_path, required=True, help=output_help,
+            "--output", "-o", type=self._parse_bam_gcp_path, required=True, help=output_help,
         )
 
         parsed_args = parser.parse_args(job_args)
 
         return AlignJob(parsed_args.input, parsed_args.ref_genome, parsed_args.output)
 
-    def parse_wildcard_fastq_gcp_path(self, arg_value: str) -> GCPPath:
-        self.assert_argument_matches_regex(arg_value, self.WILDCARD_FASTQ_BUCKET_PATH_REGEX)
+    def _parse_wildcard_fastq_gcp_path(self, arg_value: str) -> GCPPath:
+        self._assert_argument_matches_regex(arg_value, self.WILDCARD_FASTQ_BUCKET_PATH_REGEX)
         return GCPPath.from_string(arg_value)
 
-    def parse_bam_gcp_path(self, arg_value: str) -> GCPPath:
-        self.assert_argument_matches_regex(arg_value, self.BAM_BUCKET_PATH_REGEX)
+    def _parse_bam_gcp_path(self, arg_value: str) -> GCPPath:
+        self._assert_argument_matches_regex(arg_value, self.BAM_BUCKET_PATH_REGEX)
         return GCPPath.from_string(arg_value)
 
-    def parse_reference_genome_value(self, arg_value: str) -> GCPPath:
+    def _parse_reference_genome_value(self, arg_value: str) -> GCPPath:
         arg_value_format_recognized = (
             arg_value == self.REF_GENOME_37_ARGUMENT
             or arg_value == self.REF_GENOME_38_ARGUMENT
@@ -111,12 +112,20 @@ class ArgumentParser(object):
             bucket_fasta_path = arg_value
         return GCPPath.from_string(bucket_fasta_path)
 
-    def assert_argument_matches_regex(self, arg_value: str, pattern: Pattern[str]) -> None:
+    def _assert_argument_matches_regex(self, arg_value: str, pattern: Pattern[str]) -> None:
         if not pattern.match(arg_value):
             error_msg = f"Value '{arg_value}' does not match the regex pattern '{pattern.pattern}'."
             raise argparse.ArgumentTypeError(error_msg)
 
+    def _get_job_type(self, job_type_arg: str) -> JobType:
+        try:
+            job_type = JobType[job_type_arg.upper()]
+        except KeyError:
+            error_msg = f"Unrecognized job name '{job_type_arg}'. Recognized job names: {JobType.get_type_names()}"
+            raise ValueError(error_msg)
+        return job_type
+
 
 if __name__ == '__main__':
     set_up_logging()
-    ArgumentParser().extract_jobs(sys.argv[1:])
+    ArgumentParser().extract_jobs(" ".join(sys.argv[1:]))

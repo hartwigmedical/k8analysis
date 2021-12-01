@@ -1,1 +1,1 @@
-eu.gcr.io/hmf-build/k8analysis:0.36
+eu.gcr.io/hmf-build/k8analysis:0.37

@@ -228,7 +228,6 @@ run() {
   local key
   local job_name
   local docker_image
-  local language
   while [[ $# -gt 0 ]]
   do
     key="$1" && shift
@@ -237,8 +236,6 @@ run() {
         job_name="$1" && shift;;
       -d|--docker-image)  # optional
         docker_image="$1" && shift;;
-      -l|--language)  # optional
-        language="$1" && shift;;
       *)
         other_arguments+=("${key}");;
     esac
@@ -263,9 +260,6 @@ run() {
   if [[ -z ${docker_image} ]]; then
     docker_image="$(get_default_docker_image_at_k8)" || die "Could not find default Docker image name"
   fi
-    if [[ -z ${language} ]]; then
-      language="bash"
-    fi
 
   # Make sure correct credentials are available
   gcloud container clusters get-credentials research-cluster-prod-1 --region europe-west4 --project hmf-crunch \
@@ -277,21 +271,15 @@ run() {
   args_string=$(trim_excess_whitespace "${other_arguments[*]}") || die "Could not get command line arguments as a string"
 
   info "Start local dry-run to check argument parsing"
-  if [[ "${language}" == "bash" ]]; then
-    execute_jobs "${args_string}" "${REAL_EXECUTE_FALSE}" || die "Failed local dry-run"
-  elif [[ "${language}" == "python" ]]; then
-    ./src/do_python_parsing "${args_string}"
-  else
-    die "Unrecognized language: ${language}"
-  fi
+  ./src/do_python_parsing "${args_string}" || die "Dry run failed"
   info "Finished local dry-run to check argument parsing"
 
-#  sed \
-#  -e "s/VAR_JOB_NAME/${clean_job_name}/g" \
-#  -e "s#DOCKER_IMAGE#${docker_image}#g" \
-#  -e "s#RUN_ARGS#${args_string}#g" \
-#  "${REPO_DIR_NAME}/k8/hmf-crunch/deploy.yaml" \
-#  | kubectl create -f -  # use # as separator to handle / properly
+  sed \
+  -e "s/VAR_JOB_NAME/${clean_job_name}/g" \
+  -e "s#DOCKER_IMAGE#${docker_image}#g" \
+  -e "s#RUN_ARGS#${args_string}#g" \
+  "${REPO_DIR_NAME}/k8/hmf-crunch/deploy.yaml" \
+  | kubectl create -f -  # use # as separator to handle / properly
 }
 
 version() {
