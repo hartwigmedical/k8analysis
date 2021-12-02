@@ -12,7 +12,7 @@ from service_provider import ServiceProvider
 
 READ1_FASTQ_SUBSTRING = "_R1_"
 READ2_FASTQ_SUBSTRING = "_R2_"
-READ_PAIR_FASTQ_SUBSTRING = "_R*_"
+READ_PAIR_FASTQ_SUBSTRING = "_R?_"
 
 LOCAL_WORKING_DIR = Path.home() / "local_lane_bam_dir"
 
@@ -204,6 +204,6 @@ class AlignJob(Job):
         flowcell_id = record_group_id.split("_")[1]
 
         read_group_string = (
-            f"@RG\tID:{record_group_id}\tLB:{sample_name}\tPL:ILLUMINA\tPU:{flowcell_id}\tSM:{sample_name}"
+            f"@RG\\tID:{record_group_id}\\tLB:{sample_name}\\tPL:ILLUMINA\\tPU:{flowcell_id}\\tSM:{sample_name}"
         )
         return read_group_string

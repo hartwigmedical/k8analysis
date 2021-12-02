@@ -5,13 +5,13 @@ import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 
 @dataclass(frozen=True)
 class BashCommandResults(object):
-    output: str
-    errors: str
+    output: Optional[str]
+    errors: Optional[str]
     status: int
 
 
@@ -37,7 +37,7 @@ class BashToolbox(object):
     ) -> None:
         thread_count = self._get_thread_count()
         bwa_align_command = (
-            f'"{self.BWA}" mem -Y -t "{thread_count}" -R "{read_group_string}" "{local_reference_genome_path}" '
+            f'"{self.BWA}" mem -Y -t {thread_count} -R "{read_group_string}" "{local_reference_genome_path}" '
             f'"{local_read1_fastq_path}" "{local_read2_fastq_path}"'
         )
         sam_to_bam_command = f'"{self.SAMBAMBA}" view -f "bam" -S -l 0 "/dev/stdin"'
@@ -49,12 +49,12 @@ class BashToolbox(object):
     def merge_bams(self, local_input_bams: List[Path], local_output_bam: Path) -> None:
         thread_count = self._get_thread_count()
         local_input_bams_string = " ".join(f'"{input_bam}"' for input_bam in local_input_bams)
-        merge_command = f'"{self.SAMBAMBA}" merge -t "{thread_count}" "{local_output_bam}" {local_input_bams_string}'
+        merge_command = f'"{self.SAMBAMBA}" merge -t {thread_count} "{local_output_bam}" {local_input_bams_string}'
         self._run_bash_command(merge_command)
 
     def create_bam_index(self, local_bam_path: Path) -> None:
         thread_count = self._get_thread_count()
-        index_command = f'"{self.SAMBAMBA}" index -t "{thread_count}" "{local_bam_path}"'
+        index_command = f'"{self.SAMBAMBA}" index -t {thread_count} "{local_bam_path}"'
         self._run_bash_command(index_command)
 
     def _get_thread_count(self) -> int:
@@ -88,8 +88,8 @@ class BashToolbox(object):
                     process.stdout.close()
 
             output_bytes, errors_bytes = processes[-1].communicate()
-            output = output_bytes.decode(self.OUTPUT_ENCODING)
-            errors = errors_bytes.decode(self.OUTPUT_ENCODING)
+            output = None if output_bytes is None else output_bytes.decode(self.OUTPUT_ENCODING)
+            errors = None if errors_bytes is None else errors_bytes.decode(self.OUTPUT_ENCODING)
 
             status = processes[-1].returncode
         except Exception as e:
