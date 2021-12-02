@@ -150,7 +150,7 @@ class AlignJob(Job):
 
         self._create_merged_bam_with_index(local_lane_bams, service_provider)
 
-        LOCAL_WORKING_DIR.rmdir()
+        shutil.rmtree(LOCAL_WORKING_DIR)
 
     def _create_merged_bam_with_index(self, local_lane_bams: List[Path], service_provider: ServiceProvider) -> None:
         local_final_bam_path = service_provider.get_gcp_file_cache().get_local_path(self.output_path)
