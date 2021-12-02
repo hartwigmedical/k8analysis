@@ -86,7 +86,7 @@ class AlignJob(Job):
         )
         logging.info(f"The FASTQ paths have been paired up:\n{paired_fastqs_string}")
 
-        logging.info(self.ref_genome.get_parent_directory())
+        logging.info(f"Searching for reference genome files to download: {self.ref_genome.get_parent_directory()}")
         reference_genome_bucket_files = gcp_client.get_files_in_directory(self.ref_genome.get_parent_directory())
         if reference_genome_bucket_files:
             reference_genome_files_string = "\n".join(str(path) for path in reference_genome_bucket_files)

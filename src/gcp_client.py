@@ -47,6 +47,7 @@ class GCPClient(object):
         logging.info(f"Starting download of {gcp_path} to {local_path}.")
         if not self.file_exists(gcp_path):
             raise FileNotFoundError(f"Cannot download file that doesn't exist: {gcp_path}")
+        local_path.parent.mkdir(parents=True, exist_ok=True)
         self._get_blob(gcp_path).download_to_filename(str(local_path))
         if not local_path.exists():
             raise FileNotFoundError(f"Download of {gcp_path} to {local_path} has failed.")
@@ -95,40 +96,54 @@ class GCPFileCache(object):
     local_directory: Path
     gcp_client: GCPClient
 
+    SKIP_STATUS = "SKIP"
+    SUCCESS_STATUS = "SUCCESS"
+
     def multiple_download_to_local(self, gcp_paths: List[GCPPath]) -> None:
-        with concurrent.futures.ProcessPoolExecutor() as executor:
-            futures = [executor.submit(self.download_to_local, gcp_path) for gcp_path in gcp_paths]
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = []
+            for gcp_path in gcp_paths:
+                logging.info(f"Submitting download of {gcp_path}")
+                futures.append(executor.submit(self.download_to_local, gcp_path))
 
         for future in concurrent.futures.as_completed(futures):
             try:
-                future.result()
+                result = future.result()
+                logging.info(f"Finished download of {gcp_path} with result {result}")
             except Exception as exc:
                 raise ValueError(exc)
 
     def multiple_upload_from_local(self, gcp_paths: List[GCPPath]) -> None:
-        with concurrent.futures.ProcessPoolExecutor() as executor:
-            futures = [executor.submit(self.upload_from_local, gcp_path) for gcp_path in gcp_paths]
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = []
+            for gcp_path in gcp_paths:
+                logging.info(f"Submitting upload to {gcp_path}")
+                futures.append(executor.submit(self.upload_from_local, gcp_path))
 
         for future in concurrent.futures.as_completed(futures):
             try:
-                future.result()
+                result = future.result()
+                logging.info(f"Finished upload to {gcp_path} with result {result}")
             except Exception as exc:
                 raise ValueError(exc)
 
-    def download_to_local(self, gcp_path: GCPPath) -> None:
+    def download_to_local(self, gcp_path: GCPPath) -> str:
         local_path = self.get_local_path(gcp_path)
         if local_path.exists():
             logging.info(f"Skipping download of {gcp_path} since it is already in the local file cache.")
+            return self.SKIP_STATUS
         else:
             self.gcp_client.download_file(gcp_path, local_path)
+            return self.SUCCESS_STATUS
 
-    def upload_from_local(self, gcp_path: GCPPath) -> None:
+    def upload_from_local(self, gcp_path: GCPPath) -> str:
         local_path = self.get_local_path(gcp_path)
         if self.gcp_client.file_exists(gcp_path):
             error_msg = f"Cannot upload file {local_path} from local file cache since this file already exists at GCP."
             raise FileExistsError(error_msg)
         else:
             self.gcp_client.upload_file(local_path, gcp_path)
+            return self.SUCCESS_STATUS
 
     def get_local_path(self, gcp_path: GCPPath) -> Path:
         return self.local_directory / gcp_path.bucket_name / gcp_path.relative_path
