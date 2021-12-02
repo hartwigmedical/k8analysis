@@ -16,7 +16,7 @@ class GCPPath(object):
     @classmethod
     def from_string(cls, path: str) -> "GCPPath":
         if not path.startswith("gs://"):
-            raise ValueError(f"Path is not a GCP bucket path: {path}")
+            raise ValueError(f"Path is not a GCP bucket path: '{path}'")
         bucket_name = path.split("/")[2]
         relative_path = "/".join(path.split("/")[3:])
         return GCPPath(bucket_name, relative_path)
@@ -44,23 +44,23 @@ class GCPClient(object):
         return bool(self._get_blob(path).exists())
 
     def download_file(self, gcp_path: GCPPath, local_path: Path) -> None:
-        logging.info(f"Starting download of {gcp_path} to {local_path}.")
+        logging.info(f"Starting download of '{gcp_path}' to '{local_path}'.")
         if not self.file_exists(gcp_path):
             raise FileNotFoundError(f"Cannot download file that doesn't exist: {gcp_path}")
         local_path.parent.mkdir(parents=True, exist_ok=True)
         self._get_blob(gcp_path).download_to_filename(str(local_path))
         if not local_path.exists():
-            raise FileNotFoundError(f"Download of {gcp_path} to {local_path} has failed.")
-        logging.info(f"Finished download of {gcp_path} to {local_path}.")
+            raise FileNotFoundError(f"Download of '{gcp_path}' to '{local_path}' has failed.")
+        logging.info(f"Finished download of '{gcp_path}' to '{local_path}'.")
 
     def upload_file(self, local_path: Path, gcp_path: GCPPath) -> None:
-        logging.info(f"Starting upload of {local_path} to {gcp_path}.")
+        logging.info(f"Starting upload of '{local_path}' to '{gcp_path}'.")
         if not local_path.exists():
-            raise FileNotFoundError(f"Cannot upload file that doesn't exist: {local_path}")
+            raise FileNotFoundError(f"Cannot upload file that doesn't exist: '{local_path}'")
         self._get_blob(gcp_path).upload_from_filename(str(local_path))
         if not self.file_exists(gcp_path):
-            raise FileNotFoundError(f"Upload of {local_path} to {gcp_path} has failed.")
-        logging.info(f"Finished upload of {local_path} to {gcp_path}.")
+            raise FileNotFoundError(f"Upload of '{local_path}' to '{gcp_path}' has failed.")
+        logging.info(f"Finished upload of '{local_path}' to '{gcp_path}'.")
 
     def get_files_in_directory(self, path: GCPPath) -> List[GCPPath]:
         if path.relative_path[-1] != "/":
@@ -103,13 +103,13 @@ class GCPFileCache(object):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
             for gcp_path in gcp_paths:
-                logging.info(f"Submitting download of {gcp_path}")
+                logging.info(f"Submitting download of '{gcp_path}'")
                 futures.append(executor.submit(self.download_to_local, gcp_path))
 
         for future in concurrent.futures.as_completed(futures):
             try:
                 result = future.result()
-                logging.info(f"Finished download of {gcp_path} with result {result}")
+                logging.info(f"Finished download of '{gcp_path}' with result '{result}'")
             except Exception as exc:
                 raise ValueError(exc)
 
@@ -117,20 +117,20 @@ class GCPFileCache(object):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
             for gcp_path in gcp_paths:
-                logging.info(f"Submitting upload to {gcp_path}")
+                logging.info(f"Submitting upload to '{gcp_path}'")
                 futures.append(executor.submit(self.upload_from_local, gcp_path))
 
         for future in concurrent.futures.as_completed(futures):
             try:
                 result = future.result()
-                logging.info(f"Finished upload to {gcp_path} with result {result}")
+                logging.info(f"Finished upload to '{gcp_path}' with result '{result}'")
             except Exception as exc:
                 raise ValueError(exc)
 
     def download_to_local(self, gcp_path: GCPPath) -> str:
         local_path = self.get_local_path(gcp_path)
         if local_path.exists():
-            logging.info(f"Skipping download of {gcp_path} since it is already in the local file cache.")
+            logging.info(f"Skipping download of '{gcp_path}' since it is already in the local file cache.")
             return self.SKIP_STATUS
         else:
             self.gcp_client.download_file(gcp_path, local_path)
@@ -139,7 +139,7 @@ class GCPFileCache(object):
     def upload_from_local(self, gcp_path: GCPPath) -> str:
         local_path = self.get_local_path(gcp_path)
         if self.gcp_client.file_exists(gcp_path):
-            error_msg = f"Cannot upload file {local_path} from local file cache since this file already exists at GCP."
+            error_msg = f"Cannot upload file '{local_path}' from local file cache since this file already exists at GCP."
             raise FileExistsError(error_msg)
         else:
             self.gcp_client.upload_file(local_path, gcp_path)
