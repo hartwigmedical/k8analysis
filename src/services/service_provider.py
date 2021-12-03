@@ -4,6 +4,7 @@ from typing import Optional
 
 from google.cloud import storage
 
+from services.arg_parser import ArgumentParser
 from services.bash_toolbox import BashToolbox
 from services.gcp.file_cache import GCPFileCache
 from services.gcp.client import GCPClient
@@ -18,6 +19,7 @@ class ServiceProvider(ServiceProviderABC):
     _gcp_client: Optional[GCPClient] = None
     _library_gcp_client: Optional[storage.Client] = None
     _bash_toolbox: Optional[BashToolbox] = None
+    _argument_parser: Optional[ArgumentParser] = None
 
     def get_gcp_file_cache(self) -> GCPFileCache:
         if self._gcp_file_cache is None:
@@ -38,3 +40,8 @@ class ServiceProvider(ServiceProviderABC):
         if self._bash_toolbox is None:
             self._bash_toolbox = BashToolbox()
         return self._bash_toolbox
+
+    def get_argument_parser(self) -> ArgumentParser:
+        if self._argument_parser is None:
+            self._argument_parser = ArgumentParser()
+        return self._argument_parser

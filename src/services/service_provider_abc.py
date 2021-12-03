@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from google.cloud import storage
 
+    from services.arg_parser import ArgumentParser
     from services.bash_toolbox import BashToolbox
     from services.gcp.file_cache import GCPFileCache
     from services.gcp.client import GCPClient
@@ -26,4 +27,8 @@ class ServiceProviderABC(ABC):
 
     @abstractmethod
     def get_bash_toolbox(self) -> BashToolbox:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_argument_parser(self) -> ArgumentParser:
         raise NotImplementedError()

@@ -18,7 +18,7 @@ def main(arguments: List[str]) -> None:
     service_provider = ServiceProvider(LOCAL_GCP_FILE_CACHE)
 
     logging.info("Extracting jobs from arguments.")
-    jobs = ArgumentParser().extract_jobs(" ".join(arguments))
+    jobs = service_provider.get_argument_parser().extract_jobs(" ".join(arguments))
 
     if jobs:
         for job in jobs:
