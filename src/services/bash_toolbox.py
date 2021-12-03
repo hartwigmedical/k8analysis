@@ -22,7 +22,7 @@ class BashToolbox(object):
     JAVA = "java"
     BWA = Path.home() / "bwa"
     SAMBAMBA = Path.home() / "sambamba"
-    UMI_COLLAPSE_DIR = Path.home() / "UMICollapse"
+    UMI_COLLAPSE_JAR = Path.home() / "UMICollapse" / "umicollapse.jar"
 
     SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE = 4500000
 
@@ -67,6 +67,14 @@ class BashToolbox(object):
             f'"{self.SAMBAMBA}" markdup -t {thread_count} '
             f'--overflow-list-size={self.SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE} '
             f'"{local_input_bam_path}" "{local_output_bam_path}"'
+        )
+        local_output_bam_path.parent.mkdir(parents=True, exist_ok=True)
+        self._run_bash_command(dedup_command)
+
+    def deduplicate_with_umi(self, local_input_bam_path: Path, local_output_bam_path: Path) -> None:
+        dedup_command = (
+            f'{self.JAVA} -server -Xms8G -Xmx16G -Xss20M -jar "{self.UMI_COLLAPSE_JAR}" '
+            f'bam -i "{local_input_bam_path}" -o "{local_output_bam_path}" --umi-sep ":" --paired --two-pass'
         )
         local_output_bam_path.parent.mkdir(parents=True, exist_ok=True)
         self._run_bash_command(dedup_command)
