@@ -3,8 +3,8 @@ import sys
 from pathlib import Path
 from typing import List
 
-from arg_parser import ArgumentParser
-from service_provider import ServiceProvider
+from services.arg_parser import ArgumentParser
+from services.service_provider import ServiceProvider
 from util import set_up_logging
 
 LOCAL_GCP_FILE_CACHE = Path.home() / "gcp_local_file_cache"

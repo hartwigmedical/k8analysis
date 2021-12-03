@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import Enum, auto
 from typing import Set
 
-from service_provider import ServiceProvider
+from services.service_provider import ServiceProvider
 
 
 class JobType(Enum):

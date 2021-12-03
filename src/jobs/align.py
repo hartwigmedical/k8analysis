@@ -7,7 +7,7 @@ from typing import List
 
 from gcp.base import GCPPath
 from jobs.base import JobType, JobABC
-from service_provider import ServiceProvider
+from services.service_provider import ServiceProvider
 
 READ1_FASTQ_SUBSTRING = "_R1_"
 READ2_FASTQ_SUBSTRING = "_R2_"

@@ -4,7 +4,7 @@ from typing import Optional
 
 from google.cloud import storage
 
-from bash_toolbox import BashToolbox
+from services.bash_toolbox import BashToolbox
 from gcp.file_cache import GCPFileCache
 from gcp.client import GCPClient
 
