@@ -3,4 +3,4 @@
 DIR_NAME="$(dirname "$0")" || exit 1
 
 export PYTHONPATH="${PYTHONPATH}:${DIR_NAME}"
-python3 "${DIR_NAME}/arg_parser.py" "$@" || exit 1
+python3 "${DIR_NAME}/services/arg_parser.py" "$@" || exit 1
