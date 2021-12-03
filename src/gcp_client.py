@@ -101,31 +101,33 @@ class GCPFileCache(object):
 
     def multiple_download_to_local(self, gcp_paths: List[GCPPath]) -> None:
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = []
+            future_to_path = {}
             for gcp_path in gcp_paths:
                 logging.info(f"Submitting download of '{gcp_path}'")
-                futures.append(executor.submit(self.download_to_local, gcp_path))
+                future_to_path[executor.submit(self.download_to_local, gcp_path)] = gcp_path
 
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                result = future.result()
-                logging.info(f"Finished download of '{gcp_path}' with result '{result}'")
-            except Exception as exc:
-                raise ValueError(exc)
+            for future in concurrent.futures.as_completed(future_to_path.keys()):
+                try:
+                    result = future.result()
+                    gcp_path = future_to_path[future]
+                    logging.info(f"Finished download of '{gcp_path}' with result '{result}'")
+                except Exception as exc:
+                    raise ValueError(exc)
 
     def multiple_upload_from_local(self, gcp_paths: List[GCPPath]) -> None:
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = []
+            future_to_path = {}
             for gcp_path in gcp_paths:
                 logging.info(f"Submitting upload to '{gcp_path}'")
-                futures.append(executor.submit(self.upload_from_local, gcp_path))
+                future_to_path[executor.submit(self.upload_from_local, gcp_path)] = gcp_path
 
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                result = future.result()
-                logging.info(f"Finished upload to '{gcp_path}' with result '{result}'")
-            except Exception as exc:
-                raise ValueError(exc)
+            for future in concurrent.futures.as_completed(future_to_path.keys()):
+                try:
+                    result = future.result()
+                    gcp_path = future_to_path[future]
+                    logging.info(f"Finished upload to '{gcp_path}' with result '{result}'")
+                except Exception as exc:
+                    raise ValueError(exc)
 
     def download_to_local(self, gcp_path: GCPPath) -> str:
         local_path = self.get_local_path(gcp_path)
