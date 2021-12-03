@@ -7,6 +7,7 @@ from services.service_provider_abc import ServiceProviderABC
 
 class JobType(Enum):
     ALIGN = auto()
+    NON_UMI_DEDUP = auto()
 
     @classmethod
     def get_type_names(cls) -> Set[str]:

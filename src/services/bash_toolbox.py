@@ -61,6 +61,16 @@ class BashToolbox(object):
         local_bam_path.parent.mkdir(parents=True, exist_ok=True)
         self._run_bash_command(index_command)
 
+    def deduplicate_without_umi(self, local_input_bam_path: Path, local_output_bam_path: Path) -> None:
+        thread_count = self._get_thread_count()
+        dedup_command = (
+            f'"{self.SAMBAMBA}" markdup -t {thread_count} '
+            f'--overflow-list-size={self.SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE} '
+            f'"{local_input_bam_path}" "{local_output_bam_path}"'
+        )
+        local_output_bam_path.parent.mkdir(parents=True, exist_ok=True)
+        self._run_bash_command(dedup_command)
+
     def _get_thread_count(self) -> int:
         return multiprocessing.cpu_count()
 

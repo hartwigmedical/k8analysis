@@ -7,6 +7,7 @@ from typing import List, Pattern
 
 from jobs.align import AlignJob
 from jobs.base import JobType, JobABC
+from jobs.non_umi_dedup import NonUmiDedupJob
 from services.gcp.base import GCPPath
 
 
@@ -43,8 +44,11 @@ class ArgumentParser(object):
         return jobs
 
     def _parse_job(self, job_type: JobType, job_args: List[str]) -> JobABC:
+        job: JobABC
         if job_type == JobType.ALIGN:
             job = self._parse_align_job(job_args)
+        elif job_type == JobType.NON_UMI_DEDUP:
+            job = self._parse_non_umi_dedup_job(job_args)
         else:
             raise NotImplementedError(f"Unimplemented job type: {job_type}.")
         return job
@@ -80,6 +84,30 @@ class ArgumentParser(object):
         parsed_args = parser.parse_args(job_args)
 
         return AlignJob(parsed_args.input, parsed_args.ref_genome, parsed_args.output)
+
+    def _parse_non_umi_dedup_job(self, job_args: List[str]) -> NonUmiDedupJob:
+        parser = argparse.ArgumentParser(
+            prog=JobType.NON_UMI_DEDUP.get_job_name(),
+            description="Run sambamba markdup at GCP.",
+        )
+        input_help = (
+            "Path to the bam file on which deduplication will be run, e.g. gs://some-kind/of/path.bam ."
+            "Make sure that an index file is also available, e.g. gs://some-kind/of/path.bam.bai ."
+        )
+        output_help = (
+            "Path in bucket to which the deduplicated bam will be written, e.g. gs://some-other-kind/of/path.bam ."
+            "Will also output an index file, e.g. gs://some-other-kind/of/path.bam.bai ."
+        )
+        parser.add_argument(
+            "--input", "-i", type=self._parse_bam_gcp_path, required=True, help=input_help,
+        )
+        parser.add_argument(
+            "--output", "-o", type=self._parse_bam_gcp_path, required=True, help=output_help,
+        )
+
+        parsed_args = parser.parse_args(job_args)
+
+        return NonUmiDedupJob(parsed_args.input, parsed_args.output)
 
     def _parse_wildcard_fastq_gcp_path(self, arg_value: str) -> GCPPath:
         self._assert_argument_matches_regex(arg_value, self.WILDCARD_FASTQ_BUCKET_PATH_REGEX)
