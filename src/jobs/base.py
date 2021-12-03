@@ -20,8 +20,8 @@ class JobABC(ABC):
     @classmethod
     @abstractmethod
     def get_job_type(cls) -> JobType:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def execute(self, service_provider: ServiceProvider) -> None:
-        pass
+        raise NotImplementedError()
