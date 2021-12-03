@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-from gcp_client import GCPPath
+from gcp.base import GCPPath
 from jobs.base import JobType, JobABC
 from service_provider import ServiceProvider
 

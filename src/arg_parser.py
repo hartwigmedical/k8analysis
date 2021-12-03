@@ -6,7 +6,7 @@ import sys
 from dataclasses import dataclass
 from typing import List, Pattern
 
-from gcp_client import GCPPath
+from gcp.base import GCPPath
 from jobs.align import AlignJob
 from jobs.base import JobType, JobABC
 from util import set_up_logging
