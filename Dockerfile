@@ -36,4 +36,4 @@ RUN pip3 install -r src/requirements.txt
 ADD src src
 RUN find src -type f -exec chmod +x {} \;
 
-ENTRYPOINT ["./src/do_python_analysis"]
+ENTRYPOINT ["./src/python_run_analysis"]

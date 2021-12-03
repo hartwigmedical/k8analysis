@@ -2,14 +2,12 @@ import argparse
 import logging
 import re
 import shlex
-import sys
 from dataclasses import dataclass
 from typing import List, Pattern
 
 from services.gcp.base import GCPPath
 from jobs.align import AlignJob
 from jobs.base import JobType, JobABC
-from util import set_up_logging
 
 
 @dataclass(frozen=True)
@@ -125,8 +123,3 @@ class ArgumentParser(object):
             error_msg = f"Unrecognized job name '{job_type_arg}'. Recognized job names: {JobType.get_type_names()}"
             raise ValueError(error_msg)
         return job_type
-
-
-if __name__ == '__main__':
-    set_up_logging()
-    ArgumentParser().extract_jobs(" ".join(sys.argv[1:]))

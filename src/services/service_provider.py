@@ -4,6 +4,7 @@ from typing import Optional
 
 from google.cloud import storage
 
+from config import Config
 from services.arg_parser import ArgumentParser
 from services.bash_toolbox import BashToolbox
 from services.gcp.file_cache import GCPFileCache
@@ -14,7 +15,7 @@ from services.service_provider_abc import ServiceProviderABC
 @dataclass()
 class ServiceProvider(ServiceProviderABC):
     """Service from which all singleton-like objects should be gotten."""
-    local_gcp_file_cache_directory: Path
+    config: Config
     _gcp_file_cache: Optional[GCPFileCache] = None
     _gcp_client: Optional[GCPClient] = None
     _library_gcp_client: Optional[storage.Client] = None
@@ -23,7 +24,7 @@ class ServiceProvider(ServiceProviderABC):
 
     def get_gcp_file_cache(self) -> GCPFileCache:
         if self._gcp_file_cache is None:
-            self._gcp_file_cache = GCPFileCache(self.local_gcp_file_cache_directory, self.get_gcp_client())
+            self._gcp_file_cache = GCPFileCache(self.config.local_gcp_file_cache_directory, self.get_gcp_client())
         return self._gcp_file_cache
 
     def get_gcp_client(self) -> GCPClient:

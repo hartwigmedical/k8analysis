@@ -1,13 +1,10 @@
 import logging
 import sys
-from pathlib import Path
 from typing import List
 
-from services.arg_parser import ArgumentParser
+from config import Config
 from services.service_provider import ServiceProvider
 from util import set_up_logging
-
-LOCAL_GCP_FILE_CACHE = Path.home() / "gcp_local_file_cache"
 
 
 def main(arguments: List[str]) -> None:
@@ -15,7 +12,7 @@ def main(arguments: List[str]) -> None:
 
     logging.info("Starting k8analysis.")
 
-    service_provider = ServiceProvider(LOCAL_GCP_FILE_CACHE)
+    service_provider = ServiceProvider(Config())
 
     logging.info("Extracting jobs from arguments.")
     jobs = service_provider.get_argument_parser().extract_jobs(" ".join(arguments))
