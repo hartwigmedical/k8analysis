@@ -22,6 +22,9 @@ class ServiceProvider(ServiceProviderABC):
     _bash_toolbox: Optional[BashToolbox] = None
     _argument_parser: Optional[ArgumentParser] = None
 
+    def get_config(self) -> Config:
+        return self.config
+
     def get_gcp_file_cache(self) -> GCPFileCache:
         if self._gcp_file_cache is None:
             self._gcp_file_cache = GCPFileCache(self.config.local_gcp_file_cache_directory, self.get_gcp_client())

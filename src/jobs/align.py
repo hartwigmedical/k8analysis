@@ -13,8 +13,6 @@ READ1_FASTQ_SUBSTRING = "_R1_"
 READ2_FASTQ_SUBSTRING = "_R2_"
 READ_PAIR_FASTQ_SUBSTRING = "_R?_"
 
-LOCAL_WORKING_DIR = Path.home() / "local_lane_bam_dir"
-
 RECORD_GROUP_ID_REGEX = re.compile(r"(.*_){2}S[0-9]+_L[0-9]{3}_R[1-2].*")
 
 
@@ -113,21 +111,22 @@ class AlignJob(JobABC):
         return fastq_pairs
 
     def _do_alignment_locally(self, fastq_pairs: List[FastqPair], service_provider: ServiceProviderABC) -> None:
-        if LOCAL_WORKING_DIR.is_dir():
-            LOCAL_WORKING_DIR.rmdir()
-        elif LOCAL_WORKING_DIR.exists():
-            LOCAL_WORKING_DIR.unlink()
-        LOCAL_WORKING_DIR.mkdir(parents=True)
+        local_working_dir = service_provider.get_config().local_working_directory
+        if local_working_dir.is_dir():
+            local_working_dir.rmdir()
+        elif local_working_dir.exists():
+            local_working_dir.unlink()
+        local_working_dir.mkdir(parents=True)
 
         local_lane_bams: List[Path] = []
         for fastq_pair in fastq_pairs:
-            local_lane_bam = LOCAL_WORKING_DIR / f"{fastq_pair.pair_name}.bam"
+            local_lane_bam = local_working_dir / f"{fastq_pair.pair_name}.bam"
             self._do_lane_alignment_locally(fastq_pair, local_lane_bam, service_provider)
             local_lane_bams.append(local_lane_bam)
 
         self._create_merged_bam_with_index(local_lane_bams, service_provider)
 
-        shutil.rmtree(LOCAL_WORKING_DIR)
+        shutil.rmtree(local_working_dir)
 
     def _create_merged_bam_with_index(self, local_lane_bams: List[Path], service_provider: ServiceProviderABC) -> None:
         local_final_bam_path = service_provider.get_gcp_file_cache().get_local_path(self.output_path)

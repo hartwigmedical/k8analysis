@@ -8,10 +8,15 @@ if TYPE_CHECKING:
     from services.bash_toolbox import BashToolbox
     from services.gcp.file_cache import GCPFileCache
     from services.gcp.client import GCPClient
+    from config import Config
 
 
 class ServiceProviderABC(ABC):
     """ABC for ServiceProvider class."""
+
+    @abstractmethod
+    def get_config(self) -> Config:
+        raise NotImplementedError()
 
     @abstractmethod
     def get_gcp_file_cache(self) -> GCPFileCache:
