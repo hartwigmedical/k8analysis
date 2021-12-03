@@ -1,13 +1,12 @@
 import logging
 import re
 import shutil
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum, auto
 from pathlib import Path
-from typing import Set, List
+from typing import List
 
 from gcp_client import GCPPath
+from jobs.base import JobType, JobABC
 from service_provider import ServiceProvider
 
 READ1_FASTQ_SUBSTRING = "_R1_"
@@ -26,30 +25,8 @@ class FastqPair(object):
     read2: GCPPath
 
 
-class JobType(Enum):
-    ALIGN = auto()
-
-    @classmethod
-    def get_type_names(cls) -> Set[str]:
-        return {job_type.get_job_name() for job_type in cls}
-
-    def get_job_name(self) -> str:
-        return self.name.lower()
-
-
-class Job(ABC):
-    @classmethod
-    @abstractmethod
-    def get_job_type(cls) -> JobType:
-        pass
-
-    @abstractmethod
-    def execute(self, service_provider: ServiceProvider) -> None:
-        pass
-
-
 @dataclass(frozen=True)
-class AlignJob(Job):
+class AlignJob(JobABC):
     input_path: GCPPath
     ref_genome: GCPPath
     output_path: GCPPath

@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from typing import List, Pattern
 
 from gcp_client import GCPPath
-from jobs import JobType, Job, AlignJob
+from jobs.align import AlignJob
+from jobs.base import JobType, JobABC
 from util import set_up_logging
 
 
@@ -28,10 +29,10 @@ class ArgumentParser(object):
     BAM_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.bam$")
     WILDCARD_FASTQ_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9*/._-]+\.fastq\.gz$")
 
-    def extract_jobs(self, arguments_string: str) -> List[Job]:
+    def extract_jobs(self, arguments_string: str) -> List[JobABC]:
         arguments = shlex.split(arguments_string)
 
-        jobs: List[Job] = []
+        jobs: List[JobABC] = []
         while arguments:
             job_type = self._get_job_type(arguments.pop(0))
             logging.info(f"Detected job of type: {job_type.get_job_name()}.")
@@ -43,7 +44,7 @@ class ArgumentParser(object):
 
         return jobs
 
-    def _parse_job(self, job_type: JobType, job_args: List[str]) -> Job:
+    def _parse_job(self, job_type: JobType, job_args: List[str]) -> JobABC:
         if job_type == JobType.ALIGN:
             job = self._parse_align_job(job_args)
         else:
