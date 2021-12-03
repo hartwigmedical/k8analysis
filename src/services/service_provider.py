@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
 from google.cloud import storage
@@ -7,8 +6,8 @@ from google.cloud import storage
 from config import Config
 from services.arg_parser import ArgumentParser
 from services.bash_toolbox import BashToolbox
-from services.gcp.file_cache import GCPFileCache
 from services.gcp.client import GCPClient
+from services.gcp.file_cache import GCPFileCache
 from services.service_provider_abc import ServiceProviderABC
 
 

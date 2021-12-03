@@ -5,9 +5,9 @@ import shlex
 from dataclasses import dataclass
 from typing import List, Pattern
 
-from services.gcp.base import GCPPath
 from jobs.align import AlignJob
 from jobs.base import JobType, JobABC
+from services.gcp.base import GCPPath
 
 
 @dataclass(frozen=True)

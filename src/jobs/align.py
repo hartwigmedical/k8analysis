@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-from services.gcp.base import GCPPath
 from jobs.base import JobType, JobABC
+from services.gcp.base import GCPPath
 from services.service_provider_abc import ServiceProviderABC
 from util import create_or_cleanup_dir
 

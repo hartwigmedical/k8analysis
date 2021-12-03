@@ -4,11 +4,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from google.cloud import storage
 
+    from config import Config
     from services.arg_parser import ArgumentParser
     from services.bash_toolbox import BashToolbox
-    from services.gcp.file_cache import GCPFileCache
     from services.gcp.client import GCPClient
-    from config import Config
+    from services.gcp.file_cache import GCPFileCache
 
 
 class ServiceProviderABC(ABC):
