@@ -30,19 +30,19 @@ class NonUmiDedupJob(JobABC):
             return
 
         logging.info("Starting download of input files")
-        gcp_file_cache.download_to_local(self.input_path)
+        gcp_file_cache.multiple_download_to_local([self.input_path, self.input_path.append_suffix(".bai")])
         logging.info("Finished download of input files")
 
         local_input_path = gcp_file_cache.get_local_path(self.input_path)
         local_output_path = gcp_file_cache.get_local_path(self.output_path)
 
-        logging.info("Starting sambamba markdup")
+        logging.info("Starting deduplication")
         bash_tool_box.deduplicate_without_umi(local_input_path, local_output_path)
-        logging.info("Finished sambamba markdup")
+        logging.info("Finished deduplication")
 
         logging.info("Starting creation of bam index")
         bash_tool_box.create_bam_index(local_output_path)
-        logging.info("Finished  creation of bam  index")
+        logging.info("Finished creation of bam  index")
 
         logging.info("Starting upload of output files")
         gcp_file_cache.multiple_upload_from_local([self.output_path, self.output_path.append_suffix(".bai")])
