@@ -8,6 +8,7 @@ from typing import List
 from services.gcp.base import GCPPath
 from jobs.base import JobType, JobABC
 from services.service_provider_abc import ServiceProviderABC
+from util import create_or_cleanup_dir
 
 READ1_FASTQ_SUBSTRING = "_R1_"
 READ2_FASTQ_SUBSTRING = "_R2_"
@@ -112,11 +113,7 @@ class AlignJob(JobABC):
 
     def _do_alignment_locally(self, fastq_pairs: List[FastqPair], service_provider: ServiceProviderABC) -> None:
         local_working_dir = service_provider.get_config().local_working_directory
-        if local_working_dir.is_dir():
-            local_working_dir.rmdir()
-        elif local_working_dir.exists():
-            local_working_dir.unlink()
-        local_working_dir.mkdir(parents=True)
+        create_or_cleanup_dir(local_working_dir)
 
         local_lane_bams: List[Path] = []
         for fastq_pair in fastq_pairs:
@@ -126,7 +123,7 @@ class AlignJob(JobABC):
 
         self._create_merged_bam_with_index(local_lane_bams, service_provider)
 
-        shutil.rmtree(local_working_dir)
+        create_or_cleanup_dir(local_working_dir)
 
     def _create_merged_bam_with_index(self, local_lane_bams: List[Path], service_provider: ServiceProviderABC) -> None:
         local_final_bam_path = service_provider.get_gcp_file_cache().get_local_path(self.output_path)
