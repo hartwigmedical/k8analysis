@@ -6,7 +6,7 @@ from typing import List
 
 from google.cloud import storage
 
-from gcp.base import GCPPath
+from services.gcp.base import GCPPath
 
 
 @dataclass(frozen=True)

@@ -5,12 +5,13 @@ from typing import Optional
 from google.cloud import storage
 
 from services.bash_toolbox import BashToolbox
-from gcp.file_cache import GCPFileCache
-from gcp.client import GCPClient
+from services.gcp.file_cache import GCPFileCache
+from services.gcp.client import GCPClient
+from services.service_provider_abc import ServiceProviderABC
 
 
 @dataclass()
-class ServiceProvider(object):
+class ServiceProvider(ServiceProviderABC):
     """Service from which all singleton-like objects should be gotten."""
     local_gcp_file_cache_directory: Path
     _gcp_file_cache: Optional[GCPFileCache] = None

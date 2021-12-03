@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-from gcp.base import GCPPath
+from services.gcp.base import GCPPath
 from jobs.base import JobType, JobABC
-from services.service_provider import ServiceProvider
+from services.service_provider_abc import ServiceProviderABC
 
 READ1_FASTQ_SUBSTRING = "_R1_"
 READ2_FASTQ_SUBSTRING = "_R2_"
@@ -35,7 +35,7 @@ class AlignJob(JobABC):
     def get_job_type(cls) -> JobType:
         return JobType.ALIGN
 
-    def execute(self, service_provider: ServiceProvider) -> None:
+    def execute(self, service_provider: ServiceProviderABC) -> None:
         logging.info(f"Starting {self.get_job_type().get_job_name()} job")
         logging.info(f"Settings:")
         logging.info(f"    input_path  = {self.input_path}")
@@ -112,7 +112,7 @@ class AlignJob(JobABC):
 
         return fastq_pairs
 
-    def _do_alignment_locally(self, fastq_pairs: List[FastqPair], service_provider: ServiceProvider) -> None:
+    def _do_alignment_locally(self, fastq_pairs: List[FastqPair], service_provider: ServiceProviderABC) -> None:
         if LOCAL_WORKING_DIR.is_dir():
             LOCAL_WORKING_DIR.rmdir()
         elif LOCAL_WORKING_DIR.exists():
@@ -129,7 +129,7 @@ class AlignJob(JobABC):
 
         shutil.rmtree(LOCAL_WORKING_DIR)
 
-    def _create_merged_bam_with_index(self, local_lane_bams: List[Path], service_provider: ServiceProvider) -> None:
+    def _create_merged_bam_with_index(self, local_lane_bams: List[Path], service_provider: ServiceProviderABC) -> None:
         local_final_bam_path = service_provider.get_gcp_file_cache().get_local_path(self.output_path)
 
         bash_toolbox = service_provider.get_bash_toolbox()
@@ -146,7 +146,7 @@ class AlignJob(JobABC):
         logging.info("Finished creating index for merged bam")
 
     def _do_lane_alignment_locally(
-            self, fastq_pair: FastqPair, local_lane_bam: Path, service_provider: ServiceProvider,
+            self, fastq_pair: FastqPair, local_lane_bam: Path, service_provider: ServiceProviderABC,
     ) -> None:
         logging.info(f"Start creating lane bam {local_lane_bam}")
 

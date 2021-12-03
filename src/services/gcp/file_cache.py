@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-from gcp.base import GCPPath
-from gcp.client import GCPClient
+from services.gcp.base import GCPPath
+from services.gcp.client import GCPClient
 
 
 @dataclass(frozen=True)

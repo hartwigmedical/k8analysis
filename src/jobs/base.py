@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import Enum, auto
 from typing import Set
 
-from services.service_provider import ServiceProvider
+from services.service_provider_abc import ServiceProviderABC
 
 
 class JobType(Enum):
@@ -23,5 +23,5 @@ class JobABC(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def execute(self, service_provider: ServiceProvider) -> None:
+    def execute(self, service_provider: ServiceProviderABC) -> None:
         raise NotImplementedError()
