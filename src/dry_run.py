@@ -12,7 +12,9 @@ def main(arguments: List[str]) -> None:
 
     logging.info("Starting dry run for k8analysis.")
     logging.info("Extracting jobs from arguments.")
-    ServiceProvider(Config()).get_argument_parser().extract_jobs(" ".join(arguments))
+    jobs = ServiceProvider(Config()).get_argument_parser().extract_jobs(" ".join(arguments))
+    if not jobs:
+        raise ValueError("No jobs detected.")
 
     logging.info("Finished dry run for k8analysis.")
 
