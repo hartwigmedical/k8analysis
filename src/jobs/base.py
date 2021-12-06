@@ -7,6 +7,7 @@ from services.service_provider_abc import ServiceProviderABC
 
 class JobType(Enum):
     ALIGN = auto()
+    FLAGSTAT = auto()
     NON_UMI_DEDUP = auto()
     UMI_DEDUP = auto()
 

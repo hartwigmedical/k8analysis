@@ -81,6 +81,14 @@ class BashToolbox(object):
         create_parent_dir_if_not_exists(local_output_bam_path)
         self._run_bash_command(dedup_command)
 
+    def flagstat(self, local_input_bam_path: Path, local_output_flagstat_path: Path) -> None:
+        thread_count = self._get_thread_count()
+        flagstat_command = (
+            f'"{self.SAMBAMBA}" flagstat -t "{thread_count}" "{local_input_bam_path}" > "{local_output_flagstat_path}"'
+        )
+        create_parent_dir_if_not_exists(local_output_flagstat_path)
+        self._run_bash_command(flagstat_command)
+
     def _get_thread_count(self) -> int:
         return multiprocessing.cpu_count()
 

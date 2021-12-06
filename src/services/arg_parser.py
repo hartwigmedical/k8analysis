@@ -7,6 +7,7 @@ from typing import List, Pattern
 
 from jobs.align import AlignJob
 from jobs.base import JobType, JobABC
+from jobs.flagstat import FlagstatJob
 from jobs.non_umi_dedup import NonUmiDedupJob
 from jobs.umi_dedup import UmiDedupJob
 from services.gcp.base import GCPPath
@@ -27,6 +28,7 @@ class ArgumentParser(object):
 
     BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+$")
     BAM_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.bam$")
+    FLAGSTAT_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.flagstat$")
     WILDCARD_FASTQ_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9*/._-]+\.fastq\.gz$")
 
     def extract_jobs(self, arguments_string: str) -> List[JobABC]:
@@ -48,6 +50,8 @@ class ArgumentParser(object):
         job: JobABC
         if job_type == JobType.ALIGN:
             job = self._parse_align_job(job_args)
+        elif job_type == JobType.FLAGSTAT:
+            job = self._parse_flagstat_job(job_args)
         elif job_type == JobType.NON_UMI_DEDUP:
             job = self._parse_non_umi_dedup_job(job_args)
         elif job_type == JobType.UMI_DEDUP:
@@ -87,6 +91,29 @@ class ArgumentParser(object):
         parsed_args = parser.parse_args(job_args)
 
         return AlignJob(parsed_args.input, parsed_args.ref_genome, parsed_args.output)
+
+    def _parse_flagstat_job(self, job_args: List[str]) -> FlagstatJob:
+        parser = argparse.ArgumentParser(
+            prog=JobType.FLAGSTAT.get_job_name(),
+            description="Run sambamba flagstat at GCP.",
+        )
+        input_help = (
+            "Path to the bam file on which sambamba flagstat will be run, e.g. gs://some-kind/of/path.bam ."
+            "Make sure that an index file is also available, e.g. gs://some-kind/of/path.bam.bai ."
+        )
+        output_help = (
+            "Path in bucket to which flagstat file will be written, e.g. gs://some-other-kind/of/path.flagstat ."
+        )
+        parser.add_argument(
+            "--input", "-i", type=self._parse_bam_gcp_path, required=True, help=input_help,
+        )
+        parser.add_argument(
+            "--output", "-o", type=self._parse_flagstat_gcp_path, required=True, help=output_help,
+        )
+
+        parsed_args = parser.parse_args(job_args)
+
+        return FlagstatJob(parsed_args.input, parsed_args.output)
 
     def _parse_non_umi_dedup_job(self, job_args: List[str]) -> NonUmiDedupJob:
         parser = argparse.ArgumentParser(
@@ -142,6 +169,10 @@ class ArgumentParser(object):
 
     def _parse_bam_gcp_path(self, arg_value: str) -> GCPPath:
         self._assert_argument_matches_regex(arg_value, self.BAM_BUCKET_PATH_REGEX)
+        return GCPPath.from_string(arg_value)
+
+    def _parse_flagstat_gcp_path(self, arg_value: str) -> GCPPath:
+        self._assert_argument_matches_regex(arg_value, self.FLAGSTAT_BUCKET_PATH_REGEX)
         return GCPPath.from_string(arg_value)
 
     def _parse_reference_genome_value(self, arg_value: str) -> GCPPath:
