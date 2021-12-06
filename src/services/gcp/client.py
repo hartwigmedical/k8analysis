@@ -41,19 +41,16 @@ class GCPClient(object):
             prefix = path.relative_path + "/"
         else:
             prefix = path.relative_path
-        blobs = self._get_bucket(path.bucket_name).list_blobs(prefix=prefix, delimiter="/")
+        blobs = self.client.list_blobs(path.bucket_name, prefix=prefix, delimiter="/")
         return [GCPPath(path.bucket_name, blob.name) for blob in blobs]
 
     def get_matching_file_paths(self, path: GCPPath) -> List[GCPPath]:
         matching_paths: List[GCPPath] = []
         prefix_to_match = path.relative_path.split("*")[0]
-        for blob in self._get_bucket(path.bucket_name).list_blobs(prefix=prefix_to_match):
+        for blob in self.client.list_blobs(path.bucket_name, prefix=prefix_to_match):
             if fnmatch.fnmatch(blob.name, path.relative_path):
                 matching_paths.append(GCPPath(path.bucket_name, blob.name))
         return matching_paths
 
     def _get_blob(self, path: GCPPath) -> storage.Blob:
-        return self._get_bucket(path.bucket_name).blob(path.relative_path)
-
-    def _get_bucket(self, bucket_name: str) -> storage.Bucket:
-        return self.client.get_bucket(bucket_name)
+        return storage.Blob(path.relative_path, path.bucket_name)
