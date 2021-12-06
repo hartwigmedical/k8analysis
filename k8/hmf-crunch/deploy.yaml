@@ -19,7 +19,7 @@ spec:
             limits:
               memory: "32Gi"
       nodeSelector:
-        pool: large-mem-burst
+        pool: large-mem-pool-1
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
