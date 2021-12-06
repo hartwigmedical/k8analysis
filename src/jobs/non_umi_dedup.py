@@ -42,7 +42,7 @@ class NonUmiDedupJob(JobABC):
 
         logging.info("Starting creation of bam index")
         bash_tool_box.create_bam_index(local_output_path)
-        logging.info("Finished creation of bam  index")
+        logging.info("Finished creation of bam index")
 
         logging.info("Starting upload of output files")
         gcp_file_cache.multiple_upload_from_local([self.output_path, self.output_path.append_suffix(".bai")])
