@@ -25,14 +25,14 @@ class FastqPair(object):
 
 
 @dataclass(frozen=True)
-class AlignJob(JobABC):
+class DnaAlignJob(JobABC):
     input_path: GCPPath
     ref_genome: GCPPath
     output_path: GCPPath
 
     @classmethod
     def get_job_type(cls) -> JobType:
-        return JobType.ALIGN
+        return JobType.DNA_ALIGN
 
     def execute(self, service_provider: ServiceProviderABC) -> None:
         logging.info(f"Starting {self.get_job_type().get_job_name()} job")

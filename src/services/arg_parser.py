@@ -5,7 +5,7 @@ import shlex
 from dataclasses import dataclass
 from typing import List, Pattern
 
-from jobs.align import AlignJob
+from jobs.dna_align import DnaAlignJob
 from jobs.base import JobType, JobABC
 from jobs.count_mapping_coords import CountMappingCoordsJob
 from jobs.flagstat import FlagstatJob
@@ -50,8 +50,8 @@ class ArgumentParser(object):
 
     def _parse_job(self, job_type: JobType, job_args: List[str]) -> JobABC:
         job: JobABC
-        if job_type == JobType.ALIGN:
-            job = self._parse_align_job(job_args)
+        if job_type == JobType.DNA_ALIGN:
+            job = self._parse_dna_align_job(job_args)
         elif job_type == JobType.COUNT_MAPPING_COORDS:
             job = self._parse_count_mapping_coords_job(job_args)
         elif job_type == JobType.FLAGSTAT:
@@ -64,9 +64,9 @@ class ArgumentParser(object):
             raise NotImplementedError(f"Unimplemented job type: {job_type}.")
         return job
 
-    def _parse_align_job(self, job_args: List[str]) -> AlignJob:
+    def _parse_dna_align_job(self, job_args: List[str]) -> DnaAlignJob:
         parser = argparse.ArgumentParser(
-            prog=JobType.ALIGN.get_job_name(),
+            prog=JobType.DNA_ALIGN.get_job_name(),
             description="Run bwa mem alignment of paired reads at GCP.",
         )
         input_help = (
@@ -94,7 +94,7 @@ class ArgumentParser(object):
 
         parsed_args = parser.parse_args(job_args)
 
-        return AlignJob(parsed_args.input, parsed_args.ref_genome, parsed_args.output)
+        return DnaAlignJob(parsed_args.input, parsed_args.ref_genome, parsed_args.output)
 
     def _parse_count_mapping_coords_job(self, job_args: List[str]) -> CountMappingCoordsJob:
         parser = argparse.ArgumentParser(
