@@ -89,6 +89,17 @@ class BashToolbox(object):
         create_parent_dir_if_not_exists(local_output_flagstat_path)
         self._run_bash_command(flagstat_command)
 
+    def count_mapping_coords(self, local_input_bam_path: Path, local_output_path: Path) -> None:
+        thread_count = self._get_thread_count()
+        view_command = f'"{self.SAMBAMBA}" view -t "{thread_count}" "{local_input_bam_path}"'
+        select_command = 'awk \'{print $3 "\t" $4}\''
+        uniqueness_command = 'sort -u'
+        count_command = f'wc -l'
+        combined_command = " | ".join([view_command, select_command, uniqueness_command, count_command])
+        combined_command_with_output = f'{combined_command} > "{local_output_path}"'
+        create_parent_dir_if_not_exists(local_output_path)
+        self._run_bash_command(combined_command_with_output)
+
     def _get_thread_count(self) -> int:
         return multiprocessing.cpu_count()
 

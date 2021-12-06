@@ -7,6 +7,7 @@ from typing import List, Pattern
 
 from jobs.align import AlignJob
 from jobs.base import JobType, JobABC
+from jobs.count_mapping_coords import CountMappingCoordsJob
 from jobs.flagstat import FlagstatJob
 from jobs.non_umi_dedup import NonUmiDedupJob
 from jobs.umi_dedup import UmiDedupJob
@@ -29,6 +30,7 @@ class ArgumentParser(object):
     BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+$")
     BAM_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.bam$")
     FLAGSTAT_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.flagstat$")
+    TXT_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.txt$")
     WILDCARD_FASTQ_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9*/._-]+\.fastq\.gz$")
 
     def extract_jobs(self, arguments_string: str) -> List[JobABC]:
@@ -50,6 +52,8 @@ class ArgumentParser(object):
         job: JobABC
         if job_type == JobType.ALIGN:
             job = self._parse_align_job(job_args)
+        elif job_type == JobType.COUNT_MAPPING_COORDS:
+            job = self._parse_count_mapping_coords_job(job_args)
         elif job_type == JobType.FLAGSTAT:
             job = self._parse_flagstat_job(job_args)
         elif job_type == JobType.NON_UMI_DEDUP:
@@ -91,6 +95,29 @@ class ArgumentParser(object):
         parsed_args = parser.parse_args(job_args)
 
         return AlignJob(parsed_args.input, parsed_args.ref_genome, parsed_args.output)
+
+    def _parse_count_mapping_coords_job(self, job_args: List[str]) -> CountMappingCoordsJob:
+        parser = argparse.ArgumentParser(
+            prog=JobType.COUNT_MAPPING_COORDS.get_job_name(),
+            description="Count mapping coordinates at GCP.",
+        )
+        input_help = (
+            "Path to the bam file of which mapping coordinates will be counted, e.g. gs://some-kind/of/path.bam ."
+            "Make sure that an index file is also available, e.g. gs://some-kind/of/path.bam.bai ."
+        )
+        output_help = (
+            "Path in bucket to which count will be uploaded, e.g. gs://some-other-kind/of/path.txt ."
+        )
+        parser.add_argument(
+            "--input", "-i", type=self._parse_bam_gcp_path, required=True, help=input_help,
+        )
+        parser.add_argument(
+            "--output", "-o", type=self._parse_txt_gcp_path, required=True, help=output_help,
+        )
+
+        parsed_args = parser.parse_args(job_args)
+
+        return CountMappingCoordsJob(parsed_args.input, parsed_args.output)
 
     def _parse_flagstat_job(self, job_args: List[str]) -> FlagstatJob:
         parser = argparse.ArgumentParser(
@@ -173,6 +200,10 @@ class ArgumentParser(object):
 
     def _parse_flagstat_gcp_path(self, arg_value: str) -> GCPPath:
         self._assert_argument_matches_regex(arg_value, self.FLAGSTAT_BUCKET_PATH_REGEX)
+        return GCPPath.from_string(arg_value)
+
+    def _parse_txt_gcp_path(self, arg_value: str) -> GCPPath:
+        self._assert_argument_matches_regex(arg_value, self.TXT_BUCKET_PATH_REGEX)
         return GCPPath.from_string(arg_value)
 
     def _parse_reference_genome_value(self, arg_value: str) -> GCPPath:
