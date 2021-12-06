@@ -7,6 +7,7 @@ from typing import List
 from google.cloud import storage
 
 from services.gcp.base import GCPPath
+from util import create_parent_dir_if_not_exists
 
 
 @dataclass(frozen=True)
@@ -20,7 +21,7 @@ class GCPClient(object):
         logging.info(f"Starting download of '{gcp_path}' to '{local_path}'.")
         if not self.file_exists(gcp_path):
             raise FileNotFoundError(f"Cannot download file that doesn't exist: {gcp_path}")
-        local_path.parent.mkdir(parents=True, exist_ok=True)
+        create_parent_dir_if_not_exists(local_path)
         self._get_blob(gcp_path).download_to_filename(str(local_path))
         if not local_path.exists():
             raise FileNotFoundError(f"Download of '{gcp_path}' to '{local_path}' has failed.")

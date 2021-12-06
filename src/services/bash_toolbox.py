@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
+from util import create_parent_dir_if_not_exists
+
 
 @dataclass(frozen=True)
 class BashCommandResults(object):
@@ -45,20 +47,20 @@ class BashToolbox(object):
         bam_sort_command = f'"{self.SAMBAMBA}" sort -o "{local_output_bam_path}" "/dev/stdin"'
         combined_command = " | ".join([bwa_align_command, sam_to_bam_command, bam_sort_command])
 
-        local_output_bam_path.parent.mkdir(parents=True, exist_ok=True)
+        create_parent_dir_if_not_exists(local_output_bam_path)
         self._run_bash_command(combined_command)
 
     def merge_bams(self, local_input_bams: List[Path], local_output_bam: Path) -> None:
         thread_count = self._get_thread_count()
         local_input_bams_string = " ".join(f'"{input_bam}"' for input_bam in local_input_bams)
         merge_command = f'"{self.SAMBAMBA}" merge -t {thread_count} "{local_output_bam}" {local_input_bams_string}'
-        local_output_bam.parent.mkdir(parents=True, exist_ok=True)
+        create_parent_dir_if_not_exists(local_output_bam)
         self._run_bash_command(merge_command)
 
     def create_bam_index(self, local_bam_path: Path) -> None:
         thread_count = self._get_thread_count()
         index_command = f'"{self.SAMBAMBA}" index -t {thread_count} "{local_bam_path}"'
-        local_bam_path.parent.mkdir(parents=True, exist_ok=True)
+        create_parent_dir_if_not_exists(local_bam_path)
         self._run_bash_command(index_command)
 
     def deduplicate_without_umi(self, local_input_bam_path: Path, local_output_bam_path: Path) -> None:
@@ -68,7 +70,7 @@ class BashToolbox(object):
             f'--overflow-list-size={self.SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE} '
             f'"{local_input_bam_path}" "{local_output_bam_path}"'
         )
-        local_output_bam_path.parent.mkdir(parents=True, exist_ok=True)
+        create_parent_dir_if_not_exists(local_output_bam_path)
         self._run_bash_command(dedup_command)
 
     def deduplicate_with_umi(self, local_input_bam_path: Path, local_output_bam_path: Path) -> None:
@@ -76,7 +78,7 @@ class BashToolbox(object):
             f'{self.JAVA} -server -Xms8G -Xmx16G -Xss20M -jar "{self.UMI_COLLAPSE_JAR}" '
             f'bam -i "{local_input_bam_path}" -o "{local_output_bam_path}" --umi-sep ":" --paired --two-pass'
         )
-        local_output_bam_path.parent.mkdir(parents=True, exist_ok=True)
+        create_parent_dir_if_not_exists(local_output_bam_path)
         self._run_bash_command(dedup_command)
 
     def _get_thread_count(self) -> int:

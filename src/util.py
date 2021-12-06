@@ -15,3 +15,7 @@ def create_or_cleanup_dir(directory: Path) -> None:
     elif directory.exists():
         directory.unlink()
     directory.mkdir(parents=True)
+
+
+def create_parent_dir_if_not_exists(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
