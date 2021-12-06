@@ -53,4 +53,4 @@ class GCPClient(object):
         return matching_paths
 
     def _get_blob(self, path: GCPPath) -> storage.Blob:
-        return self.client.get_bucket(path.bucket_name).get_blob(path.relative_path)
+        return storage.Blob(path.relative_path, self.client.get_bucket(path.bucket_name))
