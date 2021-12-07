@@ -271,7 +271,7 @@ run() {
   args_string=$(trim_excess_whitespace "${other_arguments[*]}") || die "Could not get command line arguments as a string"
 
   info "Start local dry-run to check argument parsing"
-  ./src/python_dry_run_analysis "${args_string}" || die "Dry run failed"
+  ./src/dry_run_analysis "${args_string}" || die "Dry run failed"
   info "Finished local dry-run to check argument parsing"
 
   sed \
