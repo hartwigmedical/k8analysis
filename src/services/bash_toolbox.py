@@ -4,7 +4,7 @@ import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union, TextIO
 
 from util import create_parent_dir_if_not_exists
 
@@ -82,10 +82,10 @@ class BashToolbox(object):
     def flagstat(self, local_input_bam_path: Path, local_output_flagstat_path: Path) -> None:
         thread_count = self._get_thread_count()
         flagstat_command = (
-            f'"{self.SAMBAMBA}" flagstat -t "{thread_count}" "{local_input_bam_path}" > "{local_output_flagstat_path}"'
+            f'"{self.SAMBAMBA}" flagstat -t "{thread_count}" "{local_input_bam_path}"'
         )
         create_parent_dir_if_not_exists(local_output_flagstat_path)
-        self._run_bash_command(flagstat_command)
+        self._run_bash_command(flagstat_command, local_output_flagstat_path)
 
     def count_mapping_coords(self, local_input_bam_path: Path, local_output_path: Path) -> None:
         thread_count = self._get_thread_count()
@@ -94,45 +94,20 @@ class BashToolbox(object):
         uniqueness_command = 'sort -u'
         count_command = f'wc -l'
         combined_command = " | ".join([view_command, select_command, uniqueness_command, count_command])
-        combined_command_with_output = f'{combined_command} > "{local_output_path}"'
         create_parent_dir_if_not_exists(local_output_path)
-        self._run_bash_command(combined_command_with_output)
+        self._run_bash_command(combined_command, local_output_path)
 
     def _get_thread_count(self) -> int:
         return multiprocessing.cpu_count()
 
-    def _run_bash_command(self, command: str) -> BashCommandResults:
-        # Source: https://stackoverflow.com/questions/46117715/python-subprocess-call-and-pipes
-        # Other source: https://stackoverflow.com/questions/9655841/python-subprocess-how-to-use-pipes-thrice
+    def _run_bash_command(self, command: str, output_file_path: Optional[Path] = None) -> BashCommandResults:
         logging.info(f"Running bash command:\n{command}")
-        command_list = command.split(" | ")
 
-        if not command_list:
+        if not command:
             raise SyntaxError(f"No command found to run: {command}")
 
-        processes: List[subprocess.Popen[bytes]] = []
         try:
-            for command in command_list:
-                args = shlex.split(command)
-                if not processes:
-                    process = subprocess.Popen(args, stdout=subprocess.PIPE)
-                else:
-                    process = subprocess.Popen(
-                        args,
-                        stdin=processes[-1].stdout,
-                        stdout=subprocess.PIPE,
-                    )
-                processes.append(process)
-
-            for process in reversed(processes[:-1]):
-                if process.stdout is not None:
-                    process.stdout.close()
-
-            output_bytes, errors_bytes = processes[-1].communicate()
-            output = None if output_bytes is None else output_bytes.decode(self.OUTPUT_ENCODING)
-            errors = None if errors_bytes is None else errors_bytes.decode(self.OUTPUT_ENCODING)
-
-            status = processes[-1].returncode
+            output, errors, status = self._get_bash_command_output(command, output_file_path)
         except Exception as e:
             output = ""
             errors = f"Exception: {e}"
@@ -142,3 +117,41 @@ class BashToolbox(object):
             raise ValueError(f"Bash pipeline failed: status={status}, errors={errors}")
 
         return BashCommandResults(output, errors, status)
+
+    def _get_bash_command_output(self, command: str, output_file_path: Optional[Path] = None) -> Tuple[str, str, int]:
+        # Source: https://stackoverflow.com/questions/46117715/python-subprocess-call-and-pipes
+        # Other source: https://stackoverflow.com/questions/9655841/python-subprocess-how-to-use-pipes-thrice
+
+        # Create pipeline of subprocesses that mimics bash piping
+        command_list = command.split(" | ")
+        processes: List[subprocess.Popen[bytes]] = []
+        for index, command in enumerate(command_list):
+            process_output: Union[TextIO, int]
+            if output_file_path is not None and index == len(command_list) - 1:
+                # Output of the last command should be redirected to the output file
+                process_output = open(output_file_path, "w+")
+            else:
+                process_output = subprocess.PIPE
+
+            args = shlex.split(command)
+            if index == 0:
+                process = subprocess.Popen(args, stdout=process_output)
+            else:
+                process = subprocess.Popen(args, stdin=processes[-1].stdout, stdout=process_output)
+            processes.append(process)
+
+        # Close pipelines in between the subprocesses.
+        # This allows earlier subprocesses to receive a SIGPIPE if a later subprocess exits.
+        # The final pipe is closed by the communicate method
+        for process in reversed(processes[:-1]):
+            if process.stdout is not None:
+                process.stdout.close()
+
+        output_bytes, errors_bytes = processes[-1].communicate()
+
+        # The output encoding is an assumption
+        output = None if output_bytes is None else output_bytes.decode(self.OUTPUT_ENCODING)
+        errors = None if errors_bytes is None else errors_bytes.decode(self.OUTPUT_ENCODING)
+        status = processes[-1].returncode
+
+        return output, errors, status
