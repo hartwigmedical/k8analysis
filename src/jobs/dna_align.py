@@ -88,13 +88,13 @@ class DnaAlignJob(JobABC):
 
         for fastq_gcp_path in fastq_gcp_paths:
             fastq_file_name = fastq_gcp_path.relative_path.split("/")[-1]
-            read1_subtring_count = fastq_file_name.count(READ1_FASTQ_SUBSTRING)
-            read2_subtring_count = fastq_file_name.count(READ2_FASTQ_SUBSTRING)
+            read1_substring_count = fastq_file_name.count(READ1_FASTQ_SUBSTRING)
+            read2_substring_count = fastq_file_name.count(READ2_FASTQ_SUBSTRING)
 
-            if read1_subtring_count == 1 and read2_subtring_count == 0:
+            if read1_substring_count == 1 and read2_substring_count == 0:
                 pair_name = fastq_file_name.replace(READ1_FASTQ_SUBSTRING, READ_PAIR_FASTQ_SUBSTRING).split(".")[0]
                 pair_name_to_read1[pair_name] = fastq_gcp_path
-            elif read1_subtring_count == 0 and read2_subtring_count == 1:
+            elif read1_substring_count == 0 and read2_substring_count == 1:
                 pair_name = fastq_file_name.replace(READ2_FASTQ_SUBSTRING, READ_PAIR_FASTQ_SUBSTRING).split(".")[0]
                 pair_name_to_read2[pair_name] = fastq_gcp_path
             else:

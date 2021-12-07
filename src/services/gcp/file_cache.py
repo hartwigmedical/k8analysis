@@ -64,7 +64,9 @@ class GCPFileCache(object):
     def upload_from_local(self, gcp_path: GCPPath) -> str:
         local_path = self.get_local_path(gcp_path)
         if self.gcp_client.file_exists(gcp_path):
-            error_msg = f"Cannot upload file '{local_path}' from local file cache since this file already exists at GCP."
+            error_msg = (
+                f"Cannot upload file '{local_path}' from local file cache since this file already exists at GCP."
+            )
             raise FileExistsError(error_msg)
         else:
             self.gcp_client.upload_file(local_path, gcp_path)
