@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 
 REPO_DIR_NAME="$(dirname "$0")" || exit 1
-
-source "${REPO_DIR_NAME}/src/analysis_tools" || exit 1
-
 SCRIPT_NAME="$(basename "$0")" || exit 1
 
 DEFAULT_DOCKER_IMAGE_FILE_NAME="${REPO_DIR_NAME}/default_docker_image_at_k8.txt"
