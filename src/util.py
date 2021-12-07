@@ -7,6 +7,7 @@ def set_up_logging() -> None:
     logging.basicConfig(
         format="%(asctime)s - [%(levelname)-8s] - %(message)s", level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S"
     )
+    logging.getLogger("urllib3").setLevel(logging.ERROR)
 
 
 def create_or_cleanup_dir(directory: Path) -> None:
