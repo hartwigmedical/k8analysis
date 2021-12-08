@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, TextIO
 
+from jobs.util import LocalFastqPair
 from util import create_parent_dir_if_not_exists
 
 
@@ -30,8 +31,7 @@ class BashToolbox(object):
 
     def align_dna_bam(
             self,
-            local_read1_fastq_path: Path,
-            local_read2_fastq_path: Path,
+            local_fastq_pair: LocalFastqPair,
             local_reference_genome_path: Path,
             local_output_bam_path: Path,
             read_group_string: str,
@@ -39,7 +39,7 @@ class BashToolbox(object):
         thread_count = self._get_thread_count()
         bwa_align_command = (
             f'"{self.BWA}" mem -Y -t {thread_count} -R "{read_group_string}" "{local_reference_genome_path}" '
-            f'"{local_read1_fastq_path}" "{local_read2_fastq_path}"'
+            f'"{local_fastq_pair.read1}" "{local_fastq_pair.read2}"'
         )
         sam_to_bam_command = f'"{self.SAMBAMBA}" view -f "bam" -S -l 0 "/dev/stdin"'
         bam_sort_command = f'"{self.SAMBAMBA}" sort -o "{local_output_bam_path}" "/dev/stdin"'

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List
 
 from jobs.base import JobType, JobABC
+from jobs.util import FastqPairMatcher, GCPFastqPair, LocalFastqPair
 from services.gcp.base import GCPPath
 from services.service_provider_abc import ServiceProviderABC
 from util import create_or_cleanup_dir
@@ -15,13 +16,6 @@ READ2_FASTQ_SUBSTRING = "_R2_"
 READ_PAIR_FASTQ_SUBSTRING = "_R?_"
 
 RECORD_GROUP_ID_REGEX = re.compile(r"(.*_){2}S[0-9]+_L[0-9]{3}_R[1-2].*")
-
-
-@dataclass(frozen=True, order=True)
-class FastqPair(object):
-    pair_name: str
-    read1: GCPPath
-    read2: GCPPath
 
 
 @dataclass(frozen=True)
@@ -56,7 +50,7 @@ class DnaAlignJob(JobABC):
         else:
             raise ValueError(f"Could not find FASTQ paths matching the input path {self.input_path}")
 
-        fastq_pairs = self._pair_up_fastq_paths(fastq_gcp_paths)
+        fastq_pairs = FastqPairMatcher().pair_up_gcp_fastq_paths(fastq_gcp_paths)
         paired_fastqs_string = "\n\n".join(
             f"Read1: {fastq_pair.read1}\nRead2: {fastq_pair.read2}" for fastq_pair in fastq_pairs
         )
@@ -82,36 +76,7 @@ class DnaAlignJob(JobABC):
 
         logging.info(f"Finished {self.get_job_type().get_job_name()} job")
 
-    def _pair_up_fastq_paths(self, fastq_gcp_paths: List[GCPPath]) -> List[FastqPair]:
-        pair_name_to_read1 = {}
-        pair_name_to_read2 = {}
-
-        for fastq_gcp_path in fastq_gcp_paths:
-            fastq_file_name = fastq_gcp_path.relative_path.split("/")[-1]
-            read1_substring_count = fastq_file_name.count(READ1_FASTQ_SUBSTRING)
-            read2_substring_count = fastq_file_name.count(READ2_FASTQ_SUBSTRING)
-
-            if read1_substring_count == 1 and read2_substring_count == 0:
-                pair_name = fastq_file_name.replace(READ1_FASTQ_SUBSTRING, READ_PAIR_FASTQ_SUBSTRING).split(".")[0]
-                pair_name_to_read1[pair_name] = fastq_gcp_path
-            elif read1_substring_count == 0 and read2_substring_count == 1:
-                pair_name = fastq_file_name.replace(READ2_FASTQ_SUBSTRING, READ_PAIR_FASTQ_SUBSTRING).split(".")[0]
-                pair_name_to_read2[pair_name] = fastq_gcp_path
-            else:
-                raise ValueError(f"The FASTQ file is not marked clearly as read 1 or read 2: {fastq_gcp_path}")
-
-        if set(pair_name_to_read1.keys()) != set(pair_name_to_read2.keys()):
-            raise ValueError(f"Not all FASTQ files can be matched up in proper pairs of read 1 and read 2")
-
-        fastq_pairs = [
-            FastqPair(pair_name, pair_name_to_read1[pair_name], pair_name_to_read2[pair_name])
-            for pair_name in pair_name_to_read1.keys()
-        ]
-        fastq_pairs.sort()
-
-        return fastq_pairs
-
-    def _do_alignment_locally(self, fastq_pairs: List[FastqPair], service_provider: ServiceProviderABC) -> None:
+    def _do_alignment_locally(self, fastq_pairs: List[GCPFastqPair], service_provider: ServiceProviderABC) -> None:
         local_working_dir = service_provider.get_config().local_working_directory
         create_or_cleanup_dir(local_working_dir)
 
@@ -124,6 +89,27 @@ class DnaAlignJob(JobABC):
         self._create_merged_bam_with_index(local_lane_bams, service_provider)
 
         create_or_cleanup_dir(local_working_dir)
+
+    def _do_lane_alignment_locally(
+            self, fastq_pair: GCPFastqPair, local_lane_bam: Path, service_provider: ServiceProviderABC,
+    ) -> None:
+        logging.info(f"Start creating lane bam {local_lane_bam}")
+
+        gcp_file_cache = service_provider.get_gcp_file_cache()
+        local_fastq_pair = fastq_pair.get_local_version(gcp_file_cache)
+        local_reference_genome_path = gcp_file_cache.get_local_path(self.ref_genome)
+        local_final_bam_path = gcp_file_cache.get_local_path(self.output_path)
+
+        read_group_string = self._get_read_group_string(local_fastq_pair, local_final_bam_path)
+
+        logging.info(f"Start alignment for lane bam {local_lane_bam}")
+        service_provider.get_bash_toolbox().align_dna_bam(
+            local_fastq_pair,
+            local_reference_genome_path,
+            local_lane_bam,
+            read_group_string,
+        )
+        logging.info(f"Finished creating lane bam {local_lane_bam}")
 
     def _create_merged_bam_with_index(self, local_lane_bams: List[Path], service_provider: ServiceProviderABC) -> None:
         local_final_bam_path = service_provider.get_gcp_file_cache().get_local_path(self.output_path)
@@ -141,32 +127,8 @@ class DnaAlignJob(JobABC):
         bash_toolbox.create_bam_index(local_final_bam_path)
         logging.info("Finished creating index for merged bam")
 
-    def _do_lane_alignment_locally(
-            self, fastq_pair: FastqPair, local_lane_bam: Path, service_provider: ServiceProviderABC,
-    ) -> None:
-        logging.info(f"Start creating lane bam {local_lane_bam}")
-
-        gcp_file_cache = service_provider.get_gcp_file_cache()
-
-        local_read1_fastq_path = gcp_file_cache.get_local_path(fastq_pair.read1)
-        local_read2_fastq_path = gcp_file_cache.get_local_path(fastq_pair.read2)
-        local_reference_genome_path = gcp_file_cache.get_local_path(self.ref_genome)
-        local_final_bam_path = gcp_file_cache.get_local_path(self.output_path)
-
-        read_group_string = self._get_read_group_string(local_read1_fastq_path, local_final_bam_path)
-
-        logging.info(f"Start alignment for lane bam {local_lane_bam}")
-        service_provider.get_bash_toolbox().align_dna_bam(
-            local_read1_fastq_path,
-            local_read2_fastq_path,
-            local_reference_genome_path,
-            local_lane_bam,
-            read_group_string,
-        )
-        logging.info(f"Finished creating lane bam {local_lane_bam}")
-
-    def _get_read_group_string(self, local_read1_fastq_path: Path, local_output_final_bam_path: Path) -> str:
-        record_group_id = local_read1_fastq_path.name.split(".")[0]
+    def _get_read_group_string(self, local_fastq_pair: LocalFastqPair, local_output_final_bam_path: Path) -> str:
+        record_group_id = local_fastq_pair.read1.name.split(".")[0]
         if not RECORD_GROUP_ID_REGEX.match(record_group_id):
             error_msg = (
                 f"Record group ID '{record_group_id}' does not match "
