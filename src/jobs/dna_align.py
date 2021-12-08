@@ -79,18 +79,27 @@ class DnaAlignJob(JobABC):
         local_lane_bams: List[Path] = []
         for fastq_pair in fastq_pairs:
             local_lane_bam = local_working_dir / f"{fastq_pair.pair_name}.bam"
+
+            logging.info(f"Start creating lane bam {local_lane_bam}")
             self._do_lane_alignment_locally(fastq_pair, local_lane_bam, service_provider)
+            logging.info(f"Finished creating lane bam {local_lane_bam}")
+
             local_lane_bams.append(local_lane_bam)
 
-        self._create_merged_bam_with_index(local_lane_bams, service_provider)
+        local_final_bam_path = service_provider.get_gcp_file_cache().get_local_path(self.output_path)
+        logging.info("Start merging lane bams")
+        self._merge_bams(local_lane_bams, local_final_bam_path, service_provider)
+        logging.info("Finished merging lane bams")
+
+        logging.info("Start creating index for merged bam")
+        self._index_bam(local_final_bam_path, service_provider)
+        logging.info("Finished creating index for merged bam")
 
         create_or_cleanup_dir(local_working_dir)
 
     def _do_lane_alignment_locally(
             self, fastq_pair: GCPFastqPair, local_lane_bam: Path, service_provider: ServiceProviderABC,
     ) -> None:
-        logging.info(f"Start creating lane bam {local_lane_bam}")
-
         gcp_file_cache = service_provider.get_gcp_file_cache()
         local_fastq_pair = fastq_pair.get_local_version(gcp_file_cache)
         local_reference_genome_path = gcp_file_cache.get_local_path(self.ref_genome)
@@ -105,23 +114,18 @@ class DnaAlignJob(JobABC):
             local_lane_bam,
             read_group_string,
         )
-        logging.info(f"Finished creating lane bam {local_lane_bam}")
 
-    def _create_merged_bam_with_index(self, local_lane_bams: List[Path], service_provider: ServiceProviderABC) -> None:
-        local_final_bam_path = service_provider.get_gcp_file_cache().get_local_path(self.output_path)
-
-        bash_toolbox = service_provider.get_bash_toolbox()
+    def _merge_bams(
+            self, local_lane_bams: List[Path], local_final_bam_path: Path, service_provider: ServiceProviderABC,
+    ) -> None:
         if len(local_lane_bams) == 1:
-            logging.info("Only one lane bam, so lane bam is merged bam.")
+            logging.info("Only one lane bam, so simply copy over this bam.")
             shutil.move(str(local_lane_bams[0]), str(local_final_bam_path))
         else:
-            logging.info("Start merging lane bams")
-            bash_toolbox.merge_bams(local_lane_bams, local_final_bam_path)
-            logging.info("Finished merging lane bams")
+            service_provider.get_bash_toolbox().merge_bams(local_lane_bams, local_final_bam_path)
 
-        logging.info("Start creating index for merged bam")
-        bash_toolbox.create_bam_index(local_final_bam_path)
-        logging.info("Finished creating index for merged bam")
+    def _index_bam(self, local_final_bam_path: Path, service_provider: ServiceProviderABC) -> None:
+        service_provider.get_bash_toolbox().create_bam_index(local_final_bam_path)
 
     def _get_read_group_string(self, local_fastq_pair: LocalFastqPair, local_output_final_bam_path: Path) -> str:
         record_group_id = local_fastq_pair.read1.name.split(".")[0]
