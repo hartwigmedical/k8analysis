@@ -10,6 +10,7 @@ from jobs.base import JobType, JobABC
 from jobs.count_mapping_coords import CountMappingCoordsJob
 from jobs.flagstat import FlagstatJob
 from jobs.non_umi_dedup import NonUmiDedupJob
+from jobs.rna_align import RnaAlignJob
 from jobs.umi_dedup import UmiDedupJob
 from services.gcp.base import GCPPath
 
@@ -58,6 +59,8 @@ class ArgumentParser(object):
             job = self._parse_flagstat_job(job_args)
         elif job_type == JobType.NON_UMI_DEDUP:
             job = self._parse_non_umi_dedup_job(job_args)
+        elif job_type == JobType.RNA_ALIGN:
+            job = self._parse_rna_align_job(job_args)
         elif job_type == JobType.UMI_DEDUP:
             job = self._parse_umi_dedup_job(job_args)
         else:
@@ -165,6 +168,38 @@ class ArgumentParser(object):
         parsed_args = parser.parse_args(job_args)
 
         return NonUmiDedupJob(parsed_args.input, parsed_args.output)
+
+    def _parse_rna_align_job(self, job_args: List[str]) -> RnaAlignJob:
+        parser = argparse.ArgumentParser(
+            prog=JobType.RNA_ALIGN.get_job_name(),
+            description="Run STAR alignment of paired RNA reads at GCP.",
+        )
+        input_help = (
+            "Wildcard path to the fastqs files that will be aligned, e.g. 'gs://some-kind/of/path*.fastq.gz'. "
+            "Make sure that for each read pair the file path for read 1 contains '_R1_' exactly once and "
+            "'_R2_' zero times, and that the file path for read 2 contains '_R2_' exactly once and '_R1_' zero times."
+        )
+        ref_genome_help = (
+            "Reference genome version to align to. "
+            "Either '37', '38', or some GCP bucket path to a FASTA file, e.g. 'gs://some/kind/of/path'."
+        )
+        output_help = (
+            "Path in bucket to which the bam will be written, e.g. 'gs://some-other-kind/of/path.bam'. "
+            "Will also output an index file, e.g. 'gs://some-other-kind/of/path.bam.bai'."
+        )
+        parser.add_argument(
+            "--input", "-i", type=self._parse_wildcard_fastq_gcp_path, required=True, help=input_help,
+        )
+        parser.add_argument(
+            "--ref-genome", "-r", type=self._parse_reference_genome_value, required=True, help=ref_genome_help,
+        )
+        parser.add_argument(
+            "--output", "-o", type=self._parse_bam_gcp_path, required=True, help=output_help,
+        )
+
+        parsed_args = parser.parse_args(job_args)
+
+        return RnaAlignJob(parsed_args.input, parsed_args.ref_genome, parsed_args.output)
 
     def _parse_umi_dedup_job(self, job_args: List[str]) -> UmiDedupJob:
         parser = argparse.ArgumentParser(

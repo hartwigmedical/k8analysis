@@ -27,6 +27,8 @@ RUN git clone https://github.com/Daniel-Liu-c0deb0t/UMICollapse.git \
     && curl -O -L https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/1.1.7.3/snappy-java-1.1.7.3.jar \
     && cd ../.. \
     && chmod +x UMICollapse/umicollapse
+RUN wget -qO- https://github.com/alexdobin/STAR/archive/refs/tags/2.7.3a.tar.gz | tar xzf - \
+    && chmod +x STAR-2.7.3a/bin/Linux_x86_64_static/STAR
 
 # install Python libraries
 ADD src/requirements.txt src/requirements.txt

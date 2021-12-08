@@ -10,6 +10,7 @@ class JobType(Enum):
     DNA_ALIGN = auto()
     FLAGSTAT = auto()
     NON_UMI_DEDUP = auto()
+    RNA_ALIGN = auto()
     UMI_DEDUP = auto()
 
     @classmethod

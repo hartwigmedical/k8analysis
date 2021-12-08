@@ -23,6 +23,7 @@ class BashToolbox(object):
     JAVA = "java"
     BWA = Path.home() / "bwa"
     SAMBAMBA = Path.home() / "sambamba"
+    STAR = Path.home() / "STAR-2.7.3a" / "bin" / "Linux_x86_64_static" / "STAR"
     UMI_COLLAPSE_JAR = Path.home() / "UMICollapse" / "umicollapse.jar"
 
     SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE = 4500000
@@ -45,6 +46,49 @@ class BashToolbox(object):
         bam_sort_command = f'"{self.SAMBAMBA}" sort -o "{local_output_bam_path}" "/dev/stdin"'
         combined_command = " | ".join([bwa_align_command, sam_to_bam_command, bam_sort_command])
 
+        create_parent_dir_if_not_exists(local_output_bam_path)
+        self._run_bash_command(combined_command)
+
+    def align_rna_bam(
+            self,
+            local_fastq_pairs: List[LocalFastqPair],
+            local_reference_genome_path: Path,
+            local_output_bam_path: Path,
+    ) -> None:
+        thread_count = self._get_thread_count()
+        r1_files = ",".join(f'"{pair.read1}"' for pair in local_fastq_pairs)
+        r2_files = ",".join(f'"{pair.read2}"' for pair in local_fastq_pairs)
+        star_align_command = (
+            f'"{self.STAR}" '
+            f'--runThreadN {thread_count} '
+            f'--genomeDir "{local_reference_genome_path.parent}" '
+            f'--genomeLoad NoSharedMemory '
+            f'--readFilesIn {r1_files} {r2_files} '
+            f'--readFilesCommand zcat '
+            f'--outSAMtype BAM Unsorted '
+            f'--outSAMunmapped Within '
+            f'--outBAMcompression 0 '
+            f'--outSAMattributes All '
+            f'--outFilterMultimapNmax 10 '
+            f'--outFilterMismatchNmax 3 limitOutSJcollapsed 3000000 '
+            f'--chimSegmentMin 10 '
+            f'--chimOutType WithinBAM SoftClip '
+            f'--chimJunctionOverhangMin 10 '
+            f'--chimSegmentReadGapMax 3 '
+            f'--chimScoreMin 1 '
+            f'--chimScoreDropMax 30 '
+            f'--chimScoreJunctionNonGTAG 0 '
+            f'--chimScoreSeparation 1 '
+            f'--outFilterScoreMinOverLread 0.33 '
+            f'--outFilterMatchNminOverLread 0.33 '
+            f'--outFilterMatchNmin 35 '
+            f'--alignSplicedMateMapLminOverLmate 0.33 '
+            f'--alignSplicedMateMapLmin 35 '
+            f'--alignSJstitchMismatchNmax 5 -1 5 5 '
+            f'--outStd BAM.Unsorted'
+        )
+        bam_sort_command = f'"{self.SAMBAMBA}" sort -o "{local_output_bam_path}" "/dev/stdin"'
+        combined_command = " | ".join([star_align_command, bam_sort_command])
         create_parent_dir_if_not_exists(local_output_bam_path)
         self._run_bash_command(combined_command)
 
