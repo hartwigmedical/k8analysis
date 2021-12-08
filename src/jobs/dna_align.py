@@ -11,18 +11,14 @@ from services.gcp.base import GCPPath
 from services.service_provider_abc import ServiceProviderABC
 from util import create_or_cleanup_dir
 
-READ1_FASTQ_SUBSTRING = "_R1_"
-READ2_FASTQ_SUBSTRING = "_R2_"
-READ_PAIR_FASTQ_SUBSTRING = "_R?_"
-
-RECORD_GROUP_ID_REGEX = re.compile(r"(.*_){2}S[0-9]+_L[0-9]{3}_R[1-2].*")
-
 
 @dataclass(frozen=True)
 class DnaAlignJob(JobABC):
     input_path: GCPPath
     ref_genome: GCPPath
     output_path: GCPPath
+
+    RECORD_GROUP_ID_REGEX = re.compile(r"(.*_){2}S[0-9]+_L[0-9]{3}_R[1-2].*")
 
     @classmethod
     def get_job_type(cls) -> JobType:
@@ -129,10 +125,10 @@ class DnaAlignJob(JobABC):
 
     def _get_read_group_string(self, local_fastq_pair: LocalFastqPair, local_output_final_bam_path: Path) -> str:
         record_group_id = local_fastq_pair.read1.name.split(".")[0]
-        if not RECORD_GROUP_ID_REGEX.match(record_group_id):
+        if not self.RECORD_GROUP_ID_REGEX.match(record_group_id):
             error_msg = (
                 f"Record group ID '{record_group_id}' does not match "
-                f"the required regex '{RECORD_GROUP_ID_REGEX.pattern}'"
+                f"the required regex '{self.RECORD_GROUP_ID_REGEX.pattern}'"
             )
             raise ValueError(error_msg)
         sample_name = local_output_final_bam_path.name.split(".")[0]
