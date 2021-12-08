@@ -85,7 +85,7 @@ class BashToolbox(object):
             f'--alignSplicedMateMapLminOverLmate 0.33 '
             f'--alignSplicedMateMapLmin 35 '
             f'--alignSJstitchMismatchNmax 5 -1 5 5 '
-            f'--outStd BAM.Unsorted'
+            f'--outStd BAM_Unsorted'
         )
         bam_sort_command = f'"{self.SAMBAMBA}" sort -o "{local_output_bam_path}" "/dev/stdin"'
         combined_command = " | ".join([star_align_command, bam_sort_command])
