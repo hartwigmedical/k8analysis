@@ -21,12 +21,14 @@ class ArgumentParser(object):
     REF_GENOME_37_ARGUMENT = "37"
     REF_GENOME_38_ARGUMENT = "38"
 
-    REF_GENOME_37_BUCKET_FASTA_PATH = (
+    REF_GENOME_37_FASTA_BUCKET_PATH = (
         "gs://common-resources/reference_genome/37/Homo_sapiens.GRCh37.GATK.illumina.fasta"
     )
-    REF_GENOME_38_BUCKET_FASTA_PATH = (
+    REF_GENOME_38_FASTA_BUCKET_PATH = (
         "gs://common-resources/reference_genome/38/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna"
     )
+    REF_GENOME_37_STAR_RESOURCES_BUCKET_PATH = "gs://hmf-crunch-resources/rna/star/37"
+    REF_GENOME_38_STAR_RESOURCES_BUCKET_PATH = "gs://hmf-crunch-resources/rna/star/38"
 
     BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+$")
     BAM_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.bam$")
@@ -89,7 +91,7 @@ class ArgumentParser(object):
             "--input", "-i", type=self._parse_wildcard_fastq_gcp_path, required=True, help=input_help,
         )
         parser.add_argument(
-            "--ref-genome", "-r", type=self._parse_reference_genome_value, required=True, help=ref_genome_help,
+            "--ref-genome", "-r", type=self._parse_dna_reference_genome_value, required=True, help=ref_genome_help,
         )
         parser.add_argument(
             "--output", "-o", type=self._parse_bam_gcp_path, required=True, help=output_help,
@@ -180,8 +182,7 @@ class ArgumentParser(object):
             "'_R2_' zero times, and that the file path for read 2 contains '_R2_' exactly once and '_R1_' zero times."
         )
         ref_genome_help = (
-            "Reference genome version to align to. "
-            "Either '37', '38', or some GCP bucket path to a FASTA file, e.g. 'gs://some/kind/of/path'."
+            "Reference genome version to align to. Either '37', '38'."
         )
         output_help = (
             "Path in bucket to which the bam will be written, e.g. 'gs://some-other-kind/of/path.bam'. "
@@ -191,7 +192,7 @@ class ArgumentParser(object):
             "--input", "-i", type=self._parse_wildcard_fastq_gcp_path, required=True, help=input_help,
         )
         parser.add_argument(
-            "--ref-genome", "-r", type=self._parse_reference_genome_value, required=True, help=ref_genome_help,
+            "--ref-genome", "-r", type=self._parse_rna_reference_genome_value, required=True, help=ref_genome_help,
         )
         parser.add_argument(
             "--output", "-o", type=self._parse_bam_gcp_path, required=True, help=output_help,
@@ -241,7 +242,7 @@ class ArgumentParser(object):
         self._assert_argument_matches_regex(arg_value, self.TXT_BUCKET_PATH_REGEX)
         return GCPPath.from_string(arg_value)
 
-    def _parse_reference_genome_value(self, arg_value: str) -> GCPPath:
+    def _parse_dna_reference_genome_value(self, arg_value: str) -> GCPPath:
         arg_value_format_recognized = (
             arg_value == self.REF_GENOME_37_ARGUMENT
             or arg_value == self.REF_GENOME_38_ARGUMENT
@@ -255,13 +256,26 @@ class ArgumentParser(object):
             raise argparse.ArgumentTypeError(error_msg)
 
         if arg_value == self.REF_GENOME_37_ARGUMENT:
-            bucket_fasta_path = self.REF_GENOME_37_BUCKET_FASTA_PATH
+            bucket_fasta_path = self.REF_GENOME_37_FASTA_BUCKET_PATH
         elif arg_value == self.REF_GENOME_38_ARGUMENT:
-            bucket_fasta_path = self.REF_GENOME_38_BUCKET_FASTA_PATH
+            bucket_fasta_path = self.REF_GENOME_38_FASTA_BUCKET_PATH
         else:
             # arg_value is itself a GCP bucket path
             bucket_fasta_path = arg_value
         return GCPPath.from_string(bucket_fasta_path)
+
+    def _parse_rna_reference_genome_value(self, arg_value: str) -> GCPPath:
+        if arg_value == self.REF_GENOME_37_ARGUMENT:
+            bucket_path = self.REF_GENOME_37_STAR_RESOURCES_BUCKET_PATH
+        elif arg_value == self.REF_GENOME_38_ARGUMENT:
+            bucket_path = self.REF_GENOME_38_STAR_RESOURCES_BUCKET_PATH
+        else:
+            error_msg = (
+                f"Value '{arg_value}' does not match "
+                f"'{self.REF_GENOME_37_ARGUMENT}' or '{self.REF_GENOME_38_ARGUMENT}'."
+            )
+            raise argparse.ArgumentTypeError(error_msg)
+        return GCPPath.from_string(bucket_path)
 
     def _assert_argument_matches_regex(self, arg_value: str, pattern: Pattern[str]) -> None:
         if not pattern.match(arg_value):
