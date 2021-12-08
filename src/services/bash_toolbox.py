@@ -52,7 +52,7 @@ class BashToolbox(object):
     def align_rna_bam(
             self,
             local_fastq_pairs: List[LocalFastqPair],
-            local_reference_genome_path: Path,
+            local_reference_resource_dir: Path,
             local_output_bam_path: Path,
     ) -> None:
         thread_count = self._get_thread_count()
@@ -61,7 +61,7 @@ class BashToolbox(object):
         star_align_command = (
             f'"{self.STAR}" '
             f'--runThreadN {thread_count} '
-            f'--genomeDir "{local_reference_genome_path.parent}" '
+            f'--genomeDir "{local_reference_resource_dir}" '
             f'--genomeLoad NoSharedMemory '
             f'--readFilesIn {r1_files} {r2_files} '
             f'--readFilesCommand zcat '

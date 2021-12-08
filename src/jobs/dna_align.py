@@ -15,7 +15,7 @@ from util import create_or_cleanup_dir
 @dataclass(frozen=True)
 class DnaAlignJob(JobABC):
     input_path: GCPPath
-    ref_genome: GCPPath
+    ref_genome_path: GCPPath
     output_path: GCPPath
 
     RECORD_GROUP_ID_REGEX = re.compile(r"(.*_){2}S[0-9]+_L[0-9]{3}_R[1-2].*")
@@ -28,7 +28,7 @@ class DnaAlignJob(JobABC):
         logging.info(f"Starting {self.get_job_type().get_job_name()} job")
         logging.info(f"Settings:")
         logging.info(f"    input_path  = {self.input_path}")
-        logging.info(f"    ref_genome  = {self.ref_genome}")
+        logging.info(f"    ref_genome  = {self.ref_genome_path}")
         logging.info(f"    output_path = {self.output_path}")
 
         gcp_client = service_provider.get_gcp_client()
@@ -52,13 +52,13 @@ class DnaAlignJob(JobABC):
         )
         logging.info(f"The FASTQ paths have been paired up:\n{paired_fastqs_string}")
 
-        logging.info(f"Searching for reference genome files to download: {self.ref_genome.get_parent_directory()}")
-        reference_genome_bucket_files = gcp_client.get_files_in_directory(self.ref_genome.get_parent_directory())
+        logging.info(f"Searching for reference genome files to download: {self.ref_genome_path.get_parent_directory()}")
+        reference_genome_bucket_files = gcp_client.get_files_in_directory(self.ref_genome_path.get_parent_directory())
         if reference_genome_bucket_files:
             reference_genome_files_string = "\n".join(str(path) for path in reference_genome_bucket_files)
             logging.info(f"Identified reference genome files to download:\n{reference_genome_files_string}")
         else:
-            raise ValueError(f"Could not find reference genome paths matching the given path {self.ref_genome}")
+            raise ValueError(f"Could not find reference genome paths matching the given path {self.ref_genome_path}")
 
         logging.info("Starting download of input files")
         gcp_file_cache.multiple_download_to_local(fastq_gcp_paths + reference_genome_bucket_files)
@@ -102,7 +102,7 @@ class DnaAlignJob(JobABC):
     ) -> None:
         gcp_file_cache = service_provider.get_gcp_file_cache()
         local_fastq_pair = fastq_pair.get_local_version(gcp_file_cache)
-        local_reference_genome_path = gcp_file_cache.get_local_path(self.ref_genome)
+        local_reference_genome_path = gcp_file_cache.get_local_path(self.ref_genome_path)
         local_final_bam_path = gcp_file_cache.get_local_path(self.output_path)
 
         read_group_string = self._get_read_group_string(local_fastq_pair, local_final_bam_path)

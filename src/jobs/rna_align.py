@@ -12,7 +12,7 @@ from util import create_or_cleanup_dir
 @dataclass(frozen=True)
 class RnaAlignJob(JobABC):
     input_path: GCPPath
-    ref_genome: GCPPath
+    ref_genome_resource_dir: GCPPath
     output_path: GCPPath
 
     @classmethod
@@ -23,7 +23,7 @@ class RnaAlignJob(JobABC):
         logging.info(f"Starting {self.get_job_type().get_job_name()} job")
         logging.info(f"Settings:")
         logging.info(f"    input_path  = {self.input_path}")
-        logging.info(f"    ref_genome  = {self.ref_genome}")
+        logging.info(f"    ref_genome  = {self.ref_genome_resource_dir}")
         logging.info(f"    output_path = {self.output_path}")
 
         gcp_client = service_provider.get_gcp_client()
@@ -47,13 +47,14 @@ class RnaAlignJob(JobABC):
         )
         logging.info(f"The FASTQ paths have been paired up:\n{paired_fastqs_string}")
 
-        logging.info(f"Searching for reference genome files to download: {self.ref_genome.get_parent_directory()}")
-        reference_genome_bucket_files = gcp_client.get_files_in_directory(self.ref_genome.get_parent_directory())
+        logging.info(f"Searching for reference genome files to download: {self.ref_genome_resource_dir}")
+        reference_genome_bucket_files = gcp_client.get_files_in_directory(self.ref_genome_resource_dir)
         if reference_genome_bucket_files:
             reference_genome_files_string = "\n".join(str(path) for path in reference_genome_bucket_files)
             logging.info(f"Identified reference genome files to download:\n{reference_genome_files_string}")
         else:
-            raise ValueError(f"Could not find reference genome paths matching the given path {self.ref_genome}")
+            error_msg = f"Could not find reference genome paths in bucket dir: {self.ref_genome_resource_dir}"
+            raise ValueError(error_msg)
 
         logging.info("Starting download of input files")
         gcp_file_cache.multiple_download_to_local(fastq_gcp_paths + reference_genome_bucket_files)
@@ -74,11 +75,11 @@ class RnaAlignJob(JobABC):
         gcp_file_cache = service_provider.get_gcp_file_cache()
         bash_tool_box = service_provider.get_bash_toolbox()
         local_fastq_pairs = [pair.get_local_version(gcp_file_cache) for pair in fastq_pairs]
-        local_reference_genome_path = gcp_file_cache.get_local_path(self.ref_genome)
+        local_reference_resource_dir = gcp_file_cache.get_local_path(self.ref_genome_resource_dir)
         local_final_bam_path = gcp_file_cache.get_local_path(self.output_path)
 
         logging.info(f"Start creating bam {local_final_bam_path}")
-        bash_tool_box.align_rna_bam(local_fastq_pairs, local_reference_genome_path, local_final_bam_path)
+        bash_tool_box.align_rna_bam(local_fastq_pairs, local_reference_resource_dir, local_final_bam_path)
         logging.info(f"Finished creating bam {local_final_bam_path}")
 
         logging.info(f"Start indexing bam {local_final_bam_path}")
