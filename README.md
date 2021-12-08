@@ -9,13 +9,14 @@ Results are not guaranteed to be identical or even similar.
 
 ### Available jobs
 
-Job name | Description
----|---
-align  | Run bwa mem alignment of paired reads FASTQ.
-non-umi-dedup  | Deduplicate bam with sambamba markdup whilst ignoring UMI's.
-umi-dedup  | Deduplicate bam with UMI-Collapse by taking UMI's into account.
-flagstat  | Collect flagstat stats for bam with sambamba flagstat.
-count-mapping-coords  | Count unique mapping positions present in bam.
+| Job name             | Description                                                     |
+|----------------------|-----------------------------------------------------------------|
+| dna_align            | Run bwa mem alignment of paired reads FASTQ.                    |
+| rna_align            | Run STAR alignment of paired reads RNA FASTQ.                   |
+| non_umi_dedup        | Deduplicate bam with sambamba markdup whilst ignoring UMI's.    |
+| umi_dedup            | Deduplicate bam with UMI-Collapse by taking UMI's into account. |
+| flagstat             | Collect flagstat stats for bam with sambamba flagstat.          |
+| count_mapping_coords | Count unique mapping positions present in bam.                  |
 
 
 ### Running in Kubernetes
@@ -31,12 +32,12 @@ Some suggested commands to get you started:
 ```shell script
 ./k8analysis
 ./k8analysis run
-./k8analysis run align
-./k8analysis run non-umi-dedup
+./k8analysis run dna_align
+./k8analysis run non_umi_dedup
 ./k8analysis version
 ./k8analysis build
 ./k8analysis push
-./k8analysis set-default
+./k8analysis set_default
 ```
 
 ### Conditions FASTQ files

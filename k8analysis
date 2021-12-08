@@ -6,18 +6,18 @@ SCRIPT_NAME="$(basename "$0")" || exit 1
 DEFAULT_DOCKER_IMAGE_FILE_NAME="${REPO_DIR_NAME}/default_docker_image_at_k8.txt"
 
 print_usage(){
-  echo "USAGE: $0 run --job-name <job-name> <many arguments>"
+  echo "USAGE: $0 run --job_name <job_name> <many arguments>"
   echo "USAGE: $0 version"
   echo "USAGE: $0 build --name <image-name>"
   echo "USAGE: $0 push --name <image-name>"
-  echo "USAGE: $0 set-default --name <image-name>"
+  echo "USAGE: $0 set_default --name <image-name>"
   echo "Run these subcommands without arguments for more detailed documentation"
   echo ""
   echo "run               Run analysis jobs in Kubernetes."
   echo "version           Get the name of the current default Docker image for running jobs."
   echo "build             Build new Docker image."
   echo "push              Push new Docker image to GCP."
-  echo "set-default       Set Docker image at GCP to default version for running jobs."
+  echo "set_default       Set Docker image at GCP to default version for running jobs."
 }
 
 print_build_usage(){
@@ -35,30 +35,32 @@ print_push_usage(){
 print_run_usage(){
   echo "Run analysis tools in Kubernetes."
   echo "USAGE: $0 run \ "
-  echo "    --job-name <job-name> \ "
-  echo "    --docker-image <docker-image> \ "
+  echo "    --job_name <job_name> \ "
+  echo "    --docker_image <docker_image> \ "
   echo "    \${job_args}"
-  echo "  [-n/--job-name]                           (Required)    Name of the Kubernetes job"
-  echo "  [-d/--docker-image]                       (Optional)    Name of the Docker image that should be used."
+  echo "  [-n/--job_name]                           (Required)    Name of the Kubernetes job"
+  echo "  [-d/--docker_image]                       (Optional)    Name of the Docker image that should be used."
   echo "                                                          If not provided, uses the image that has been set as default."
   echo "The possible jobs are:"
-  echo "dna_align, non-umi-dedup, umi-dedup, flagstat, count-mapping-coords"
+  echo "dna_align, rna_align, non_umi_dedup, umi_dedup, flagstat, count_mapping_coords"
   echo ""
-  echo "dna_align:                    Run bwa mem alignment of paired reads FASTQ."
-  echo "non-umi-dedup:            Deduplicate bam with sambamba markdup whilst ignoring UMI's."
-  echo "umi-dedup:                Deduplicate bam with UMI-Collapse by taking UMI's into account."
+  echo "dna_align:                Run bwa mem alignment of paired reads FASTQ."
+  echo "rna_align:                Run STAR alignment of paired reads RNA FASTQ."
+  echo "non_umi_dedup:            Deduplicate bam with sambamba markdup whilst ignoring UMI's."
+  echo "umi_dedup:                Deduplicate bam with UMI-Collapse by taking UMI's into account."
   echo "flagstat:                 Collect flagstat stats for bam with sambamba flagstat."
-  echo "count-mapping-coords      Count unique mapping positions present in bam."
+  echo "count_mapping_coords      Count unique mapping positions present in bam."
   echo ""
-  echo "Run the run command with a job without further arguments to get more details on the job and required arguments, e.g. $0 run dna_align"
+  echo "Run the run command with a job without further arguments or with '-h' as argument "
+  echo "to get more details on the job and required arguments, e.g. '$0 run dna_align' or '$0 run dna_align -h'"
   echo ""
   echo "Multiple jobs can be executed sequentially by providing run with the appropriate arguments for both, e.g.:"
   echo "$0 run \ "
   echo "    dna_align \ "
-  echo "        --ref-genome 38 \ "
+  echo "        --ref_genome 38 \ "
   echo '        --input "gs://some-fastq/path/*.fastq.gz" \ '
   echo '        --output "gs://some/bam/path.bam" \ '
-  echo '    non-umi-dedup \ '
+  echo '    non_umi_dedup \ '
   echo '        --input "gs://some/bam/path.bam" \ '
   echo '        --output "gs://some/deduplicated/bam/path"'
   echo ""
@@ -72,7 +74,7 @@ print_run_usage(){
 
 print_set_default_usage(){
   echo "Set Docker image as default image for runs."
-  echo "USAGE: $0 set-default --name <image-name>"
+  echo "USAGE: $0 set_default --name <image-name>"
   echo "  [-n/--name]  (Required)    Name of the Docker image"
 }
 
@@ -89,7 +91,7 @@ k8analysis() {
     push "$@";;
   run)
     run "$@";;
-  set-default)
+  set_default)
     set_default "$@";;
   version)
     version "$@";;
@@ -175,7 +177,7 @@ push() {
     docker push "${name}" || die "Failed Docker push"
     echo "Pushed new image ${name} to GCP"
     echo "If you wish to set this image as the new default image, run the following command:"
-    echo "  $0 set-default --name ${name}"
+    echo "  $0 set_default --name ${name}"
   fi
 }
 
@@ -229,9 +231,9 @@ run() {
   do
     key="$1" && shift
     case $key in
-      -n|--job-name)  # required
+      -n|--job_name)  # required
         job_name="$1" && shift;;
-      -d|--docker-image)  # optional
+      -d|--docker_image)  # optional
         docker_image="$1" && shift;;
       *)
         other_arguments+=("${key}");;
@@ -241,15 +243,23 @@ run() {
   # sanity checks
   local input_error=false
   if [[ -z ${job_name} ]]; then
-    print_error_msg "Variable 'job-name' has not been set"
+    print_error_msg "Variable 'job_name' has not been set"
     input_error=true
   fi
   if [[ ${#other_arguments[*]} -eq 0 ]]; then
     print_error_msg "No jobs specified. Specify at least one run job"
     input_error=true
+  else
+    args_string=$(trim_excess_whitespace "${other_arguments[*]}") || die "Could not get command line arguments as a string"
+
+    info "Start local dry-run to check argument parsing"
+    ./src/dry_run_analysis "${args_string}" || die "Dry run failed"
+    info "Finished local dry-run to check argument parsing"
   fi
+
   if [[ ${input_error} == true ]]; then
     echo ""
+    info "General $0 run help message:"
     print_run_usage && exit 1
   fi
 
@@ -264,12 +274,6 @@ run() {
 
   local clean_job_name
   clean_job_name="$(echo "${job_name}" | awk '{print tolower($0)}' | tr '_' '-' | tr '[:upper:]' '[:lower:]' | tr '.' '-')"
-
-  args_string=$(trim_excess_whitespace "${other_arguments[*]}") || die "Could not get command line arguments as a string"
-
-  info "Start local dry-run to check argument parsing"
-  ./src/dry_run_analysis "${args_string}" || die "Dry run failed"
-  info "Finished local dry-run to check argument parsing"
 
   sed \
   -e "s/VAR_JOB_NAME/${clean_job_name}/g" \
