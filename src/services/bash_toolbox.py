@@ -87,8 +87,9 @@ class BashToolbox(object):
             f'--alignSJstitchMismatchNmax 5 -1 5 5 '
             f'--outStd BAM_Unsorted'
         )
+        bam_view_command = f'"{self.SAMBAMBA}" view -f "bam" -l 0 "/dev/stdin"'
         bam_sort_command = f'"{self.SAMBAMBA}" sort -o "{local_output_bam_path}" "/dev/stdin"'
-        combined_command = " | ".join([star_align_command, bam_sort_command])
+        combined_command = " | ".join([star_align_command, bam_view_command, bam_sort_command])
         create_parent_dir_if_not_exists(local_output_bam_path)
         self._run_bash_command(combined_command)
 
