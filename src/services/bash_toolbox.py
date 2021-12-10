@@ -85,7 +85,7 @@ class BashToolbox(object):
             f'--alignSplicedMateMapLminOverLmate 0.33 '
             f'--alignSplicedMateMapLmin 35 '
             f'--alignSJstitchMismatchNmax 5 -1 5 5 '
-            f'--outfileNamePrefix {local_working_dir} '
+            f'--outFileNamePrefix {local_working_dir} '
         )
         self._run_bash_command(star_align_command)
 
