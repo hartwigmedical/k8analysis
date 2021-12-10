@@ -78,9 +78,17 @@ class RnaAlignJob(JobABC):
         local_reference_resource_dir = gcp_file_cache.get_local_path(self.ref_genome_resource_dir)
         local_final_bam_path = gcp_file_cache.get_local_path(self.output_path)
 
-        logging.info(f"Start creating bam {local_final_bam_path}")
-        bash_tool_box.align_rna_bam(local_fastq_pairs, local_reference_resource_dir, local_final_bam_path)
-        logging.info(f"Finished creating bam {local_final_bam_path}")
+        logging.info(f"Start creating unsorted bam")
+        local_unsorted_bam = bash_tool_box.align_rna_bam(
+            local_fastq_pairs,
+            local_reference_resource_dir,
+            local_working_dir,
+        )
+        logging.info(f"Finished creating unsorted bam {local_unsorted_bam}")
+
+        logging.info(f"Start sorting bam {local_unsorted_bam} to create {local_final_bam_path}")
+        bash_tool_box.sort_bam(local_unsorted_bam, local_final_bam_path)
+        logging.info(f"Finished sorting bam {local_unsorted_bam} to create {local_final_bam_path}")
 
         logging.info(f"Start indexing bam {local_final_bam_path}")
         bash_tool_box.create_bam_index(local_final_bam_path)

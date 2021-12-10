@@ -53,8 +53,8 @@ class BashToolbox(object):
             self,
             local_fastq_pairs: List[LocalFastqPair],
             local_reference_resource_dir: Path,
-            local_output_bam_path: Path,
-    ) -> None:
+            local_working_dir: Path,
+    ) -> Path:
         thread_count = self._get_thread_count()
         r1_files = ",".join(f'"{pair.read1}"' for pair in local_fastq_pairs)
         r2_files = ",".join(f'"{pair.read2}"' for pair in local_fastq_pairs)
@@ -86,12 +86,26 @@ class BashToolbox(object):
             f'--alignSplicedMateMapLmin 35 '
             f'--alignSJstitchMismatchNmax 5 -1 5 5 '
             f'--outStd BAM_Unsorted'
+            f'--outfileNamePrefix {local_working_dir}'
         )
-        bam_view_command = f'"{self.SAMBAMBA}" view -f "bam" -l 0 "/dev/stdin"'
-        bam_sort_command = f'"{self.SAMBAMBA}" sort -o "{local_output_bam_path}" "/dev/stdin"'
-        combined_command = " | ".join([star_align_command, bam_view_command, bam_sort_command])
+        self._run_bash_command(star_align_command)
+
+        output_bam_path = local_working_dir / "Aligned.out.bam"
+        if not output_bam_path.exists():
+            raise FileNotFoundError(f"Failed to create RNA bam: {output_bam_path}")
+        return output_bam_path
+
+    def sort_bam(
+            self,
+            local_input_bam_path: Path,
+            local_output_bam_path: Path,
+    ) -> None:
+        thread_count = self._get_thread_count()
+        bam_sort_command = (
+            f'"{self.SAMBAMBA}" sort -t {thread_count} -o "{local_output_bam_path}" "{local_input_bam_path}"'
+        )
         create_parent_dir_if_not_exists(local_output_bam_path)
-        self._run_bash_command(combined_command)
+        self._run_bash_command(bam_sort_command)
 
     def merge_bams(self, local_input_bams: List[Path], local_output_bam: Path) -> None:
         thread_count = self._get_thread_count()
