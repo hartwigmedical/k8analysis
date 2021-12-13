@@ -1,4 +1,5 @@
 import logging
+import math
 import multiprocessing
 import shlex
 import subprocess
@@ -27,6 +28,7 @@ class BashToolbox(object):
     UMI_COLLAPSE_JAR = Path.home() / "UMICollapse" / "umicollapse.jar"
 
     SAMBAMBA_MARKDUP_OVERFLOW_LIST_SIZE = 4500000
+    STAR_MAXIMUM_THREAD_USAGE_FACTOR = 0.75
 
     OUTPUT_ENCODING = "utf-8"
 
@@ -55,12 +57,13 @@ class BashToolbox(object):
             local_reference_resource_dir: Path,
             local_working_dir: Path,
     ) -> Path:
-        thread_count = self._get_thread_count()
+        star_thread_count = max(math.floor(self.STAR_MAXIMUM_THREAD_USAGE_FACTOR * self._get_thread_count()), 1)
+
         r1_files = ",".join(f'"{pair.read1}"' for pair in local_fastq_pairs)
         r2_files = ",".join(f'"{pair.read2}"' for pair in local_fastq_pairs)
         star_align_command = (
             f'"{self.STAR}" '
-            f'--runThreadN {thread_count} '
+            f'--runThreadN {star_thread_count} '
             f'--genomeDir "{local_reference_resource_dir}" '
             f'--genomeLoad NoSharedMemory '
             f'--readFilesIn {r1_files} {r2_files} '
