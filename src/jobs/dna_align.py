@@ -18,7 +18,7 @@ class DnaAlignJob(JobABC):
     ref_genome_path: GCPPath
     output_path: GCPPath
 
-    RECORD_GROUP_ID_REGEX = re.compile(r"(.*_){2}S[0-9]+_L[0-9]{3}_R[1-2].*")
+    RECORD_GROUP_ID_REGEX = re.compile(r"([^_]+_){1,2}S[0-9]+_L[0-9]{3}_R[1-2].*")
 
     @classmethod
     def get_job_type(cls) -> JobType:
