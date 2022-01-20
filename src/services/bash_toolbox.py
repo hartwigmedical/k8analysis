@@ -134,7 +134,7 @@ class BashToolbox(object):
 
     def deduplicate_with_umi(self, local_input_bam_path: Path, local_output_bam_path: Path) -> None:
         dedup_command = (
-            f'{self.JAVA} -server -Xms8G -Xmx16G -Xss20M -jar "{self.UMI_COLLAPSE_JAR}" '
+            f'{self.JAVA} -server -Xms8G -Xmx31G -Xss20M -jar "{self.UMI_COLLAPSE_JAR}" '
             f'bam -i "{local_input_bam_path}" -o "{local_output_bam_path}" --umi-sep ":" --paired --two-pass'
         )
         create_parent_dir_if_not_exists(local_output_bam_path)
