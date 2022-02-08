@@ -30,11 +30,11 @@ class ArgumentParser(object):
     REF_GENOME_37_STAR_RESOURCES_BUCKET_PATH = "gs://hmf-crunch-resources/rna/star/37"
     REF_GENOME_38_STAR_RESOURCES_BUCKET_PATH = "gs://hmf-crunch-resources/rna/star/38"
 
-    BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+$")
-    BAM_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.bam$")
-    FLAGSTAT_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.flagstat$")
-    TXT_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._-]+\.txt$")
-    WILDCARD_FASTQ_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9*/._-]+\.fastq\.gz$")
+    BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._\-]+$")
+    BAM_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._\-]+\.bam$")
+    FLAGSTAT_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._\-]+\.flagstat$")
+    TXT_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9/._\-]+\.txt$")
+    WILDCARD_FASTQ_BUCKET_PATH_REGEX = re.compile(r"^gs://[a-zA-Z0-9*/._\[\]\-]+\.fastq\.gz$")
 
     def extract_jobs(self, arguments_string: str) -> List[JobABC]:
         arguments = shlex.split(arguments_string)
