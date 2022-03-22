@@ -6,6 +6,7 @@ metadata:
     app: k8analysis
 spec:
   backoffLimit: 1
+  ttlSecondsAfterFinished: 86400 # One day
   template:
     spec:
       containers:
